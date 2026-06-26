@@ -2,6 +2,9 @@
 node_modules/
 package-lock.json
 
+# Generated web bundle (rebuilt via `npm run build:web`)
+www/
+
 # Android / Gradle (added when we run `npx cap add android`)
 android/.gradle/
 android/build/

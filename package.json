@@ -1,0 +1,20 @@
+{
+  "name": "grow-a-flower",
+  "version": "1.0.0",
+  "description": "Grow a Flower - offline Android game (Capacitor)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/copy-web.mjs",
+    "sync": "npm run build:web && cap sync",
+    "open:android": "cap open android",
+    "android": "npm run build:web && cap sync android && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

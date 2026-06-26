@@ -1,0 +1,8 @@
+{
+  "appId": "com.growaflower.game",
+  "appName": "Grow a Flower",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
