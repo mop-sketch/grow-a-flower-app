@@ -13,6 +13,9 @@ android/local.properties
 *.keystore
 *.jks
 
+# Signing secrets - NEVER commit these
+android/keystore.properties
+
 # Android Studio / IntelliJ
 .idea/
 *.iml
