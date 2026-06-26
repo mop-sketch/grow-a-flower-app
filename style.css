@@ -5,6 +5,28 @@
     text-align: center;
 
 }
+.go-back{
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #ac8c5c;
+    background-color: #e0c9a6;
+    cursor: url('music and images/pointer 32px.png'), auto;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+    top: 30px;
+    position: relative;
+}
+.go-back:hover{
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 4px 8px rgba(188, 165, 128, 0.4);
+    background-color: #c9b08a;
+}
+.lore-mode .go-back{
+    background-color: #924e4e;
+    border: 1px solid #5a1010;
+}
+.lore-mode .go-back:hover{
+    background-color: #b45c5c;
+}
 .background::-webkit-scrollbar {
     display: none;
 }
@@ -82,6 +104,15 @@ body.lore-mode {
     transform: scale(1.1) translateY(-4px);
     box-shadow: 0 4px 8px rgba(105, 94, 70, 0.4);
     background-color: #f0d3b2;
+}
+.apple-link.offline-disabled{
+    opacity: 0.45;
+    filter: grayscale(70%);
+    cursor: not-allowed;
+}
+.apple-link.offline-disabled:hover{
+    transform: none;
+    box-shadow: none;
 }
 
 .password{

@@ -89,6 +89,21 @@ function toggleMusic() {
         musicBtn.textContent = "\u{1F507}";
     }
 }
+// Gray out the external "Apple Picker" link while offline so it doesn't open a
+// dead browser page in the offline Android build. A disabled button won't fire
+// its inline onclick. Runs on both pages; no-op where the button is absent.
+function updateAppleLinkOnlineState() {
+    const btn = document.querySelector('.apple-link');
+    if (!btn) return;
+    const online = navigator.onLine;
+    btn.disabled = !online;
+    btn.classList.toggle('offline-disabled', !online);
+    btn.title = online ? '' : 'Apple Picker needs an internet connection';
+}
+document.addEventListener('DOMContentLoaded', updateAppleLinkOnlineState);
+window.addEventListener('online', updateAppleLinkOnlineState);
+window.addEventListener('offline', updateAppleLinkOnlineState);
+
 function validate() {
     const aboutMake = document.getElementById('about-make');
     const passwordInput = document.querySelector('.password');
