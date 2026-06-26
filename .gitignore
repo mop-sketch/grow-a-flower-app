@@ -1,0 +1,15 @@
+# Node / Capacitor
+node_modules/
+package-lock.json
+
+# Android / Gradle (added when we run `npx cap add android`)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.keystore
+*.jks
+
+# OS / editor
+.DS_Store
+Thumbs.db
