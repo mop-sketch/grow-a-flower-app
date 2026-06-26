@@ -92,17 +92,29 @@ function toggleMusic() {
 // Gray out the external "Apple Picker" link while offline so it doesn't open a
 // dead browser page in the offline Android build. A disabled button won't fire
 // its inline onclick. Runs on both pages; no-op where the button is absent.
-function updateAppleLinkOnlineState() {
+function applyAppleLinkState(online) {
     const btn = document.querySelector('.apple-link');
     if (!btn) return;
-    const online = navigator.onLine;
     btn.disabled = !online;
     btn.classList.toggle('offline-disabled', !online);
     btn.title = online ? '' : 'Apple Picker needs an internet connection';
 }
-document.addEventListener('DOMContentLoaded', updateAppleLinkOnlineState);
-window.addEventListener('online', updateAppleLinkOnlineState);
-window.addEventListener('offline', updateAppleLinkOnlineState);
+
+function initAppleLinkConnectivity() {
+    // In the native Android app, navigator.onLine is unreliable, so use the
+    // Capacitor Network plugin (asks Android's connectivity service directly).
+    const net = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Network;
+    if (net) {
+        net.getStatus().then(s => applyAppleLinkState(s.connected));
+        net.addListener('networkStatusChange', s => applyAppleLinkState(s.connected));
+    } else {
+        // Plain-browser fallback (running the game as a web page).
+        applyAppleLinkState(navigator.onLine);
+        window.addEventListener('online', () => applyAppleLinkState(true));
+        window.addEventListener('offline', () => applyAppleLinkState(false));
+    }
+}
+document.addEventListener('DOMContentLoaded', initAppleLinkConnectivity);
 
 function validate() {
     const aboutMake = document.getElementById('about-make');
