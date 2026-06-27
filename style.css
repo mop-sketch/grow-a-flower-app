@@ -955,7 +955,7 @@ html {
         overflow: hidden;
     }
     .title {
-        font-size: 38px;
+        font-size: 34px;
         letter-spacing: 2px;
     }
     .flower {
@@ -1032,7 +1032,8 @@ html {
         height: 42px;
         font-size: 20px;
         top: max(4%, env(safe-area-inset-top));
-        left: 85%;
+        left: auto;
+        right: 10px;
     }
     .music-button {
         width: 42px;
