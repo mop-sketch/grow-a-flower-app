@@ -129,7 +129,7 @@ function validate() {
     const bloomingFlowerOpinion = document.getElementById('blooming-flower-opinion');
     const password = passwordInput.value;
 
-    if (password === 'blooming flower') {
+    if (password.trim().toLowerCase() === 'blooming flower') {
         alert('Access granted');
         glitchHeading();
         const darkMusicAudio = document.getElementById("dark-music");

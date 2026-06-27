@@ -12,8 +12,7 @@
     background-color: #e0c9a6;
     cursor: url('music and images/pointer 32px.png'), auto;
     transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-    top: 70px;
-    position: relative;
+    margin-top: 20px;
 }
 .go-back:hover{
     transform: scale(1.1) translateY(-4px);
@@ -189,6 +188,7 @@ body.lore-mode {
 .heading {
     color: #3b3b3b;
     font-family: 'Walter Turncoat', cursive;
+    white-space: nowrap;
 }
 .lore-mode .heading {
     animation: jumble 1s ease-in-out infinite;
@@ -203,8 +203,9 @@ body.lore-mode {
     font-family: 'Walter Turncoat', cursive;
 }
 .content {
-    margin: 40px auto; 
-    width: 80%; 
+    margin: 40px auto;
+    margin-bottom: calc(40px + env(safe-area-inset-bottom));
+    width: 80%;
     max-width: 800px;
     padding: 20px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -918,7 +919,7 @@ html {
         height: min(190px, 26vh);
     }
     .heading {
-        font-size: 36px;
+        font-size: clamp(20px, 6vw, 36px);
     }
     .header {
         font-size: 20px;
@@ -1028,7 +1029,7 @@ html {
         width: 42px;
         height: 42px;
         font-size: 20px;
-        top: 4%;
+        top: max(4%, env(safe-area-inset-top));
         left: 85%;
     }
     .music-button {
@@ -1036,7 +1037,7 @@ html {
         height: 42px;
         font-size: 20px;
         top: auto;
-        bottom: 8px;
+        bottom: calc(8px + env(safe-area-inset-bottom));
     }
     .menu {
         width: 88vw;
