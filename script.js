@@ -116,6 +116,24 @@ function initAppleLinkConnectivity() {
 }
 document.addEventListener('DOMContentLoaded', initAppleLinkConnectivity);
 
+// Some Android WebView builds stream <audio> from the packaged app assets
+// without honoring range requests, so a long looping track can restart after
+// only the first buffered chunk plays. Loading each looping track fully into
+// memory as a Blob URL makes the whole song available locally, so `loop`
+// repeats the entire track instead of a short snippet. Falls back to the
+// original src if the fetch fails (e.g. as a plain web page).
+function preloadLoopingAudio() {
+    document.querySelectorAll('audio[loop]').forEach((el) => {
+        const src = el.getAttribute('src');
+        if (!src) return;
+        fetch(src)
+            .then((resp) => resp.blob())
+            .then((blob) => { el.src = URL.createObjectURL(blob); })
+            .catch(() => { /* keep original src */ });
+    });
+}
+document.addEventListener('DOMContentLoaded', preloadLoopingAudio);
+
 function validate() {
     const aboutMake = document.getElementById('about-make');
     const passwordInput = document.querySelector('.password');
