@@ -12,14 +12,15 @@
 ## Still to do
 
 ### 1. Privacy policy
-- [ ] Replace `REPLACE_WITH_YOUR_EMAIL` in `docs/privacy-policy.html` with a real contact email
-- [ ] Enable GitHub Pages (Settings → Pages → branch `main`, folder `/docs`)
-- [ ] Confirm live URL works: `https://mop-sketch.github.io/grow-a-flower-app/privacy-policy.html`
+- [x] Replace `REPLACE_WITH_YOUR_EMAIL` in `docs/privacy-policy.html` with a real contact email
+- [x] Enable GitHub Pages (Settings → Pages → branch `main`, folder `/docs`)
+- [x] Confirm live URL works: `https://mop-sketch.github.io/grow-a-flower-app/privacy-policy.html`
 
 ### 2. Build the release artifact
-- [ ] Sync web assets into Android: `npx cap sync android`
-- [ ] Build signed App Bundle: `cd android && ./gradlew bundleRelease`
-- [ ] Output: `android/app/build/outputs/bundle/release/app-release.aab`
+- [x] Sync web assets into Android: `npx cap sync android`
+- [x] Build signed App Bundle: `cd android && ./gradlew bundleRelease`
+      (set JAVA_HOME to Android Studio's JBR; the system Java 8 won't work)
+- [x] Output: `android/app/build/outputs/bundle/release/app-release.aab` (signed, verified)
 - [ ] **Back up `upload-keystore.jks` + its passwords somewhere safe** (lose it = can't update the app ever again)
 
 ### 3. Store listing assets
