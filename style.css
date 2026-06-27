@@ -12,7 +12,7 @@
     background-color: #e0c9a6;
     cursor: url('music and images/pointer 32px.png'), auto;
     transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-    top: 30px;
+    top: 70px;
     position: relative;
 }
 .go-back:hover{
@@ -159,6 +159,17 @@ body.lore-mode {
     margin-top: 10px;
     font-size: 11px;
     color: #7e7e7e;
+}
+.disclaimer {
+    font-size: 12px;
+    font-style: italic;
+    color: #7e7e7e;
+    top: 0;
+    margin: 4px 0 16px;
+    text-align: center;
+}
+.lore-mode .disclaimer {
+    color: #c9a0a0;
 }
 .Q-and-A {
     margin-top: 20px;
