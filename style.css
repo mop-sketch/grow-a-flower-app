@@ -3,7 +3,7 @@
     letter-spacing: 3px;
     font-size: 64px;
     text-align: center;
-
+    margin-top: calc(env(safe-area-inset-top) + 8px);
 }
 .go-back{
     padding: 8px;
@@ -41,6 +41,9 @@ body.lore-mode {
     background-attachment: fixed;
     animation: bgDrift 10s ease-in-out infinite;
     cursor: url('music and images/cursor 32px.png'), auto;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
 @keyframes bgDrift {
     0%   { background-position: 0% 50%; }
@@ -204,7 +207,6 @@ body.lore-mode {
 }
 .content {
     margin: 40px auto;
-    margin-bottom: calc(40px + env(safe-area-inset-bottom));
     width: 80%;
     max-width: 800px;
     padding: 20px;
