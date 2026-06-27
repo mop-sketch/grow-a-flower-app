@@ -223,8 +223,15 @@ body.lore-mode {
 .spinning-gear {
     animation: spin 1s linear infinite;
     font-size: 244px;
-    width: 144px;
-    height: 144px;
+    width: 244px;
+    height: 244px;
+    line-height: 1;
+    text-align: center;
+    position: fixed;
+    top: 27%;
+    left: 50%;
+    margin: 0 0 0 -122px;
+    pointer-events: none;
 }
 @keyframes spin {
     0% { transform: rotate(0deg) scale(1); }
@@ -258,11 +265,16 @@ body.lore-mode {
     display: none;
     position: fixed;
     font-size: 144px;
+    width: 144px;
+    height: 144px;
+    line-height: 1;
+    text-align: center;
+    margin: 0;
     animation: spin 1.2s linear infinite;
     pointer-events: none;
 }
-#spring1 { top: 12%; left: 4%; }
-#spring2 { top: 12%; right: 4%; }
+#spring1 { top: 32%; left: 2%; }
+#spring2 { top: 32%; right: 2%; }
 .lore-mode {
     animation: rainbow 3s linear infinite;
 }
@@ -729,6 +741,12 @@ html {
     left: 50%;
     transform: translate(-50%, -50%);
     position: absolute;
+}
+/* In lore mode the flower only holds the spinning gear, which is positioned
+   fixed to the viewport. A transformed ancestor would make `position: fixed`
+   resolve against the flower box instead of the viewport, so clear it here. */
+.lore-mode .flower {
+    transform: none;
 }
 #flower-image {
     width: min(330px, 38vh);
