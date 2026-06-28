@@ -117,13 +117,14 @@ function initAppleLinkConnectivity() {
 document.addEventListener('DOMContentLoaded', initAppleLinkConnectivity);
 
 // Some Android WebView builds stream <audio> from the packaged app assets
-// without honoring range requests, so a long looping track can restart after
-// only the first buffered chunk plays. Loading each looping track fully into
-// memory as a Blob URL makes the whole song available locally, so `loop`
-// repeats the entire track instead of a short snippet. Falls back to the
+// unreliably: long looping tracks restart after only the first buffered chunk,
+// and short sound effects can fail to play the first time because they aren't
+// loaded yet. Loading every track fully into memory as a Blob URL makes it
+// available locally, so loops repeat the whole song and one-shot effects (like
+// the plant-growing sound) play instantly and reliably. Falls back to the
 // original src if the fetch fails (e.g. as a plain web page).
-function preloadLoopingAudio() {
-    document.querySelectorAll('audio[loop]').forEach((el) => {
+function preloadAudio() {
+    document.querySelectorAll('audio').forEach((el) => {
         const src = el.getAttribute('src');
         if (!src) return;
         fetch(src)
@@ -132,7 +133,7 @@ function preloadLoopingAudio() {
             .catch(() => { /* keep original src */ });
     });
 }
-document.addEventListener('DOMContentLoaded', preloadLoopingAudio);
+document.addEventListener('DOMContentLoaded', preloadAudio);
 
 function validate() {
     const aboutMake = document.getElementById('about-make');

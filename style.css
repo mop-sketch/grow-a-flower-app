@@ -221,7 +221,7 @@ body.lore-mode {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .spinning-gear {
-    animation: spin 1s linear infinite;
+    animation: spinGear 1s linear infinite;
     font-size: 244px;
     width: 244px;
     height: 244px;
@@ -236,6 +236,13 @@ body.lore-mode {
 @keyframes spin {
     0% { transform: rotate(0deg) scale(1); }
     50% { transform: rotate(180deg) scale(1.5); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+/* Tamer spin for the central flower gear: keeps a brisk rotation but a much
+   gentler size pulse than the full `spin` keyframes. */
+@keyframes spinGear {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.15); }
     100% { transform: rotate(360deg) scale(1); }
 }
 @keyframes rainbow {
