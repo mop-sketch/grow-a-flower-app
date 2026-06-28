@@ -19,6 +19,7 @@ let mysteryMenu = false;
 let menuOpen = false;
 let score = 0;
 let scoreSaved = false;
+let tutorialActive = false; // set by tutorial.js; pauses the decay loop
 
 const upgrades = { decay: 0, fertilizer: 0, safe_zone: 0, weather: 0 };
 let currentUpgradeChoices = [];
@@ -395,19 +396,24 @@ function startLoop() {
 
 function tick() {
     loopTimer = null;
+    if (tutorialActive) {
+        loopTimer = setTimeout(tick, 1000); // paused for a tutorial/tip: skip decay, keep polling
+        return;
+    }
     const healthRow = document.getElementById("health-row");
     const sunBtn = document.getElementById("sun-btn");
     const waterBtn = document.getElementById("water-btn");
     const warmthBtn = document.getElementById("warmth-btn");
     const warmthRow = document.getElementById("warmth-row");
 
-    if (growthStage === 3 && warmthButtonShown === false) {
+    if (growthStage === 3 && warmthButtonShown === false && !mysteryMenu) {
         sunBtn.style.left = "15%";
         waterBtn.style.left = "85%";
         warmthBtn.style.display = "block";
         warmthRow.style.display = "flex";
         warmthButtonShown = true;
         document.body.classList.add("warmth-active");
+        maybeShowTip("warmth", "#warmth-btn", "It's getting cold! Tap Warmth to keep your plant cozy — keep it inside the safe zone too.");
     }
     if (dead || growthStage === FINAL_STAGE || mysteryMenu) {
         return; // break: do not reschedule
@@ -420,12 +426,15 @@ function tick() {
         healthRow.style.display = "flex";
         pestActive = true;
         document.body.classList.add("health-active");
+        maybeShowTip("pests", "#health-row", "Pests have appeared! They slowly drain your plant's Health bar. Push Sunlight above the safe zone to burn them off before Health runs out.");
     }
     if (rainstormTicks === 0 && Math.random() < settings.event_chance && heatWaveTicks === 0 && !pestActive) {
         rainstormTicks = settings.weather_duration;
+        maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
     }
     if (heatWaveTicks === 0 && Math.random() < settings.event_chance && rainstormTicks === 0 && !pestActive) {
         heatWaveTicks = settings.weather_duration;
+        maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
     }
     if (water >= 70) {
         sunlight = Math.max(sunlight - 3, 0);
@@ -476,6 +485,9 @@ function startGame(level) {
     settings = DIFFICULTIES[level];
     document.getElementById("difficulty-container").style.display = "none";
     startLoop();
+    if (typeof hasTutorialSeen === "function" && !hasTutorialSeen()) {
+        startIntroTutorial();
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
