@@ -81,12 +81,20 @@ function glitchHeading() {
 function toggleMusic() {
     const musicAudio = document.getElementById("music-audio");
     const musicBtn = document.getElementById("music-btn");
+    const ambience = document.getElementById("ambience-audio");
     if (musicAudio.paused) {
         musicAudio.play();
         musicBtn.textContent = "\u{1F50A}";
+        // The toggleable creature track takes over from the always-on ambience.
+        if (ambience) ambience.pause();
     } else {
         musicAudio.pause();
         musicBtn.textContent = "\u{1F507}";
+        // Resume the ambience bed, but only if we're still on the secret plant
+        // (it should never play behind any other plant).
+        if (ambience && typeof currentPlant !== "undefined" && currentPlant && currentPlant.id === "secret") {
+            ambience.play();
+        }
     }
 }
 // Gray out the external "Apple Picker" link while offline so it doesn't open a

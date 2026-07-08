@@ -6,20 +6,101 @@
     <script src="script.js"></script>
     <script src="game.js"></script>
     <script src="tutorial.js"></script>
+    <script src="debug.js"></script>
 
 </head>
 <body class="container" >
     <p id="spring1" class="spring1" style="display:none;">⚙</p>
     <p id="spring2" class="spring2" style="display:none;">⚙</p>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <clipPath id="eldritch-eye-clip">
+                <path d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z"/>
+            </clipPath>
+        </defs>
+    </svg>
+    <div class="eldritch-eye eye1" aria-hidden="true">
+        <svg class="eye-shape" viewBox="0 0 100 60">
+            <g class="eye-drift">
+                <path class="eye-sclera" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z"/>
+                <g clip-path="url(#eldritch-eye-clip)">
+                    <g class="eye-look">
+                        <circle class="eye-iris" cx="50" cy="30" r="21"/>
+                        <circle class="eye-pupil" cx="50" cy="30" r="9.5"/>
+                        <circle class="eye-glint" cx="43" cy="23" r="3.4"/>
+                        <circle class="eye-glint2" cx="55" cy="34" r="1.4"/>
+                    </g>
+                </g>
+                <path class="eye-rim" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z" fill="none"/>
+            </g>
+        </svg>
+    </div>
+    <div class="eldritch-eye eye2" aria-hidden="true">
+        <svg class="eye-shape" viewBox="0 0 100 60">
+            <g class="eye-drift">
+                <path class="eye-sclera" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z"/>
+                <g clip-path="url(#eldritch-eye-clip)">
+                    <g class="eye-look">
+                        <circle class="eye-iris" cx="50" cy="30" r="21"/>
+                        <circle class="eye-pupil" cx="50" cy="30" r="9.5"/>
+                        <circle class="eye-glint" cx="43" cy="23" r="3.4"/>
+                        <circle class="eye-glint2" cx="55" cy="34" r="1.4"/>
+                    </g>
+                </g>
+                <path class="eye-rim" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z" fill="none"/>
+            </g>
+        </svg>
+    </div>
+    <div class="eldritch-eye eye3" aria-hidden="true">
+        <svg class="eye-shape" viewBox="0 0 100 60">
+            <g class="eye-drift">
+                <path class="eye-sclera" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z"/>
+                <g clip-path="url(#eldritch-eye-clip)">
+                    <g class="eye-look">
+                        <circle class="eye-iris" cx="50" cy="30" r="21"/>
+                        <circle class="eye-pupil" cx="50" cy="30" r="9.5"/>
+                        <circle class="eye-glint" cx="43" cy="23" r="3.4"/>
+                        <circle class="eye-glint2" cx="55" cy="34" r="1.4"/>
+                    </g>
+                </g>
+                <path class="eye-rim" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z" fill="none"/>
+            </g>
+        </svg>
+    </div>
+        <div class="eldritch-eye eye4" aria-hidden="true">
+        <svg class="eye-shape" viewBox="0 0 100 60">
+            <g class="eye-drift">
+                <path class="eye-sclera" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z"/>
+                <g clip-path="url(#eldritch-eye-clip)">
+                    <g class="eye-look">
+                        <circle class="eye-iris" cx="50" cy="30" r="21"/>
+                        <circle class="eye-pupil" cx="50" cy="30" r="9.5"/>
+                        <circle class="eye-glint" cx="43" cy="23" r="3.4"/>
+                        <circle class="eye-glint2" cx="55" cy="34" r="1.4"/>
+                    </g>
+                </g>
+                <path class="eye-rim" d="M2,30 C26,3 74,3 98,30 C74,57 26,57 2,30 Z" fill="none"/>
+            </g>
+        </svg>
+    </div>
+    <!-- Reality-cracks: glass-shatter fractures that slowly draw out from the plant
+         when the secret plant ends. Hidden unless body has .eldritch-plant + (.spring
+         win / .plant-dead loss) — pure CSS gate + recolour, see style.css. Each path
+         is pathLength-normalised so one rule draws it (stroke-dashoffset 1 -> 0). -->
     <audio id="win-audio" src="music and images/Winning-sound.mp3"></audio>
+    <!-- The secret plant's bloom is an off-tone, unsettling finale (no confetti,
+         corrupted win text, glitchy death visuals) — it gets its own sound. -->
+    <audio id="secret-win-audio" src="music and images/glitch.mp3"></audio>
     <audio id="dark-audio" src="music and images/Dark-music.mp3" loop></audio>
+    <!-- Always-on dark ambience for the secret plant (the music button can't mute this one). -->
+    <audio id="ambience-audio" src="music and images/Dark-Ambience.mp3" loop></audio>
     <audio id="music-audio" src="music and images/Peaceful-Music.mp3" loop></audio>
     <audio id="grow-audio" src="music and images/Plant Growing.mp3"></audio>
     <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
     <h1 class="title" data-text="Grow a Flower">Grow a Flower</h1>
     <div class="flower" id="flower">
         <div class="fertilizer-notification"></div>
-        <img src="flower/Seed.png" alt="Flower" id="flower-image">
+        <div class="flower-scale"><img src="flower/Seed.png" alt="Flower" id="flower-image"></div>
     </div>
     <p id="status">Fertilizer is at unsafe levels&#x274C;</p>
     <p id="score">Score: 0 &nbsp;&nbsp; Best: 0</p>
@@ -49,6 +130,10 @@
         </div>
         <button id="fertilizer-btn" class="fertilizer-button">Fertilizer</button>
     </div>
+    <button id="drain-btn" class="drain-button">Drain</button>
+    <!-- Shown only when the secret (eldritch) plant has BLOOMED: a restart CTA
+         below the bloomed plant (see body.eldritch-plant.spring in style.css). -->
+    <button id="start-over-btn" class="start-over-button">Begin Again</button>
     <div id="upgrade-container" class="upgrade-container">
         <div class="upgrade-menu" id="upgrade-menu">
             <h2 style="margin:0 0 4px 0;text-align:center;">&#127807; Stage Reward!</h2>
@@ -59,6 +144,20 @@
                 <div class="upgrade-option2" id="upgrade-option2"></div>
             </div>
         </div>
+    </div>
+    <div id="plant-choice-container" class="upgrade-container">
+        <div class="upgrade-menu" id="plant-choice-menu">
+            <h2 style="margin:0 0 4px 0;text-align:center;">&#127793; Choose Your Next Plant</h2>
+            <p id="plant-choice-subtext" style="text-align:center;margin:0 0 8px 0;font-size:13px;color:#7a5c2e;"></p>
+            <div class="option-container" style="justify-content:center;gap:6%;">
+                <div class="upgrade-option" id="plant-choice-option0"></div>
+                <div class="upgrade-option1" id="plant-choice-option1"></div>
+            </div>
+        </div>
+    </div>
+    <div id="win-continue-container">
+        <button id="keep-playing-btn" class="menu-button"> Keep Playing</button>
+        <button id="restart-game-btn" class="menu-button"> Restart Game</button>
     </div>
     <div class="menu-container" id="menu-container">
         <div id="menu" class="menu">

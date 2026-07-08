@@ -534,6 +534,26 @@ body.lore-mode {
     box-shadow: 0 7px 16px rgba(160, 85, 0, 0.35);
     transform: translate(-50%, -56%);
 }
+/* Heat-season plants (e.g. Sunflower) humidify instead of warm up — light blue. */
+.warmth-button.humidify-button {
+    background: linear-gradient(160deg, #d5eeff, #ace3ff);
+    color: #004a6e;
+    border-color: #4a9fc4;
+}
+.warmth-button.humidify-button:hover {
+    background: linear-gradient(160deg, #e0f4ff, #bfe7ff);
+    box-shadow: 0 7px 16px rgba(0, 100, 160, 0.35);
+}
+/* The eldritch secret plant's 'Focus'/Sanity button — void purple. */
+.warmth-button.eldritch-button {
+    background: linear-gradient(160deg, #7b3fb0, #4a1d78);
+    color: #f0e0ff;
+    border-color: #2e0f4d;
+}
+.warmth-button.eldritch-button:hover {
+    background: linear-gradient(160deg, #9a5fd0, #5f2a94);
+    box-shadow: 0 7px 16px rgba(90, 20, 140, 0.45);
+}
 .sun-button {
     background: linear-gradient(160deg, #ffe566, #f5b800);
     color: #5a3e00;
@@ -567,15 +587,40 @@ body.lore-mode {
     cursor: url('music and images/pointer 32px.png'), auto;
     position: relative;
     left: 50%;
-    top: 50px;
+    top: 65px;
     transform: translate(-50%, -50%);
     box-shadow: 0 4px 8px rgba(0, 120, 0, 0.25);
-    transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+    transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease, left 0.15s ease;
 }
 .fertilizer-button:hover {
     background: linear-gradient(160deg, #c6f7c6, #7de87d);
     box-shadow: 0 7px 16px rgba(0, 120, 0, 0.35);
     transform: translate(-50%, -56%);
+}
+/* Emergency 'dry out the soil' control — only shown while root rot is active.
+   Earthy tone so it reads as removing water, not adding it. */
+.drain-button {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 78%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(160deg, #d8c19c, #b08d5f);
+    color: #4a3418;
+    padding: 8px 20px;
+    width: 116px;
+    height: 44px;
+    border: 2px solid #8a6b3d;
+    border-radius: 15px;
+    font-size: 16px;
+    cursor: url('music and images/pointer 32px.png'), auto;
+    box-shadow: 0 4px 8px rgba(90, 60, 20, 0.3);
+    transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+}
+.drain-button:hover {
+    background: linear-gradient(160deg, #e6d3b3, #c2a06f);
+    box-shadow: 0 7px 16px rgba(90, 60, 20, 0.4);
+    transform: translate(-50%, -54%);
 }
 html {
     height: 100%;
@@ -756,6 +801,17 @@ html {
 .lore-mode .flower {
     transform: none;
 }
+/* Per-plant size normalization: wide "bush" plants (flower/cactus/orchid) are
+   shrunk via --plant-scale so they don't dwarf the thin "stalk" plants. Scaling
+   this wrapper (not the image) composes cleanly with the image's own event/throb
+   animations. Anchored at the base so the pot stays planted. */
+.flower-scale {
+    display: block;
+    line-height: 0;
+    transform-origin: bottom center;
+    /* No transition: the per-plant scale must apply instantly, otherwise each
+       plant visibly shrinks from full size to its target when it loads. */
+}
 #flower-image {
     width: min(330px, 38vh);
     height: min(330px, 38vh);
@@ -774,6 +830,18 @@ html {
     border: 5px solid #725b3c;
     box-shadow: 10px rgba(95, 75, 32, 0.5);
     justify-content: center;
+}
+/* On a win, these two buttons sit inline just below the bloomed flower
+   (where the play controls used to be) — not as a modal menu. */
+#win-continue-container {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 72%;
+    transform: translate(-50%, -50%);
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
 }
 #status {
     font-family: 'Indie Flower', cursive;
@@ -795,7 +863,7 @@ html {
     width: 100%;
     position: absolute;
     left: 0;
-    top: 118px;
+    top: 130px;
     text-align: center;
     font-size: 18px;
     font-weight: 700;
@@ -861,6 +929,506 @@ html {
     50%  { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
+/* --- New real-world hazard / late-phase visuals ------------------------------ */
+
+/* Heat season: the "no-winter" late phase for desert & summer plants.
+   Reuses the heat-wave shimmer over a warm, parched background. */
+@keyframes heatSeasonPulse {
+    0%   { background-color: #fff2d6; }
+    50%  { background-color: #ffe0a3; }
+    100% { background-color: #fff2d6; }
+}
+.heat-season {
+    animation: heatSeasonPulse 2s ease-in-out infinite;
+}
+.heat-season #flower-image {
+    animation: heatShimmer 1s ease-in-out infinite;
+}
+
+/* Drought: a dry, dusty parched wash. */
+@keyframes droughtPulse {
+    0%   { background-color: #f6e7c1; }
+    50%  { background-color: #e9d3a0; }
+    100% { background-color: #f6e7c1; }
+}
+@keyframes droughtParch {
+    0%   { filter: brightness(1) saturate(1); }
+    50%  { filter: brightness(1.05) saturate(0.75) sepia(0.15); }
+    100% { filter: brightness(1) saturate(1); }
+}
+.drought {
+    animation: droughtPulse 1.6s ease-in-out infinite;
+}
+.drought #flower-image {
+    animation: droughtParch 1.6s ease-in-out infinite;
+}
+
+/* Root rot / fungal blight: a sickly green-grey cast over the plant. */
+@keyframes fungalRot {
+    0%   { filter: hue-rotate(0deg) saturate(1) brightness(1); }
+    50%  { filter: hue-rotate(55deg) saturate(1.3) brightness(0.85); }
+    100% { filter: hue-rotate(0deg) saturate(1) brightness(1); }
+}
+.fungal #flower-image {
+    animation: fungalRot 1.4s ease-in-out infinite;
+}
+
+/* Strong winds: the plant sways and gets buffeted side to side. */
+@keyframes windSway {
+    0%   { transform: rotate(0deg); }
+    20%  { transform: rotate(-6deg); }
+    45%  { transform: rotate(5deg); }
+    70%  { transform: rotate(-4deg); }
+    100% { transform: rotate(0deg); }
+}
+.wind #flower-image {
+    transform-origin: bottom center;
+    animation: windSway 0.7s ease-in-out infinite;
+}
+
+/* --- Eldritch bloom: the weird secret finale plant --------------------------- */
+/* Whole-plant ambience (all stages): a drifting void with the flower tinted wrong
+   and writhing. `.eldritch-plant` is on for the secret plant's entire growth. */
+@keyframes eldritchDrift {
+    0%   { background-position: 48% 44%; }
+    17%  { background-position: 56% 53%; }
+    33%  { background-position: 45% 58%; }
+    52%  { background-position: 58% 47%; }
+    71%  { background-position: 47% 55%; }
+    88%  { background-position: 53% 45%; }
+    100% { background-position: 48% 44%; }
+}
+.eldritch-plant {
+    background: linear-gradient(160deg, #1a0d2e, #2a1145, #0d0518, #3b1a5c, #150a26, #1a0d2e);
+    background-size: 300% 300%;
+    background-attachment: fixed;
+    animation: eldritchDrift 16s ease-in-out infinite;
+}
+/* A slow heartbeat throb: swells larger and the red aura pulses brighter — no
+   skew/rotate/drift. Scales from the base so the pot stays planted. */
+@keyframes eldritchThrob {
+    0%, 100% {
+        transform: scale(1);
+        filter: contrast(1.08) saturate(1) brightness(1) drop-shadow(0 0 14px rgba(190, 30, 80, 0.5));
+    }
+    50% {
+        transform: scale(1.09);
+        filter: contrast(1.2) saturate(1.5) brightness(1.1) drop-shadow(0 0 32px rgba(255, 20, 40, 0.9));
+    }
+}
+.eldritch-plant #flower-image {
+    transform-origin: bottom center;
+    filter: contrast(1.08) drop-shadow(0 0 14px rgba(190, 30, 80, 0.5));
+    animation: eldritchThrob 1.8s ease-in-out infinite;
+}
+/* Designed SVG eyes watching from the void (see index.html): a crisp almond eye —
+   iris, dark pupil, a bright glint — wrapped in a soft glow halo. Pale/washed-out
+   during normal growth; recoloured to the eldritch purple once the Sanity phase
+   (stage 3+, body.eldritch) kicks in, via CSS vars. Each eye lives, layered:
+   .eye-shape blinks (the almond squashes shut), .eye-drift wanders the whole
+   eyeball, .eye-look darts the iris around — all faster once the Sanity phase hits.
+   The glow is a static ::before halo, kept off the blink so it never shrinks. */
+.eldritch-eye {
+    display: none;
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+    overflow: visible;
+    transform-origin: center;
+    /* Centers the eye on its top/left point. The blink/wander animations live on
+       inner elements now, so this stays a plain static transform. */
+    transform: translate(-50%, -50%);
+}
+/* Soft glow halo, on its own layer so the blinking eye above it can shrink to a
+   slit without the glow following — the aura stays put. */
+.eldritch-eye::before {
+    content: '';
+    position: absolute;
+    inset: -24%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, var(--eye-glow) 0%, rgba(0,0,0,0) 70%);
+    z-index: -1;
+    pointer-events: none;
+}
+.eye-shape {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    transform-origin: center;
+    animation: blinkEye 6s ease-in-out infinite;
+}
+/* Coloured parts (pupil + glints stay fixed; the rest follow the CSS-var palette). */
+.eye-sclera { fill: var(--eye-sclera); }
+.eye-iris   { fill: var(--eye-iris); stroke: var(--eye-ring); stroke-width: 1.6; }
+.eye-pupil  { fill: #0a0812; }
+.eye-glint  { fill: rgba(255,255,255,0.92); }
+.eye-glint2 { fill: rgba(255,255,255,0.55); }
+.eye-rim    { stroke: var(--eye-rim); stroke-width: 1.8; }
+/* The eyeball gently wanders; the iris darts around within it. */
+.eye-drift { animation: eyeDrift 11s ease-in-out infinite; }
+.eye-look  { animation: eyeLook 7s ease-in-out infinite; }
+/* Pale, washed-out palette during early growth — calm, not creepy. */
+.eldritch-plant .eldritch-eye {
+    display: block;
+    --eye-sclera: rgba(244,244,250,0.16);
+    --eye-iris:   rgba(238, 226, 226, 0.85);
+    --eye-ring:   rgba(150,152,168,0.5);
+    --eye-rim:    rgba(0, 0, 0, 0.5);
+    --eye-glow:   rgba(228,230,245,0.5);
+}
+/* Sanity phase: the eyes wake up into the eldritch purple palette (pupil stays
+   dark) AND start darting/wandering faster — more agitated, more awake. */
+body.eldritch .eldritch-eye {
+    --eye-sclera: rgba(150,90,210,0.2);
+    --eye-iris:   rgba(200,142,250,0.9);
+    --eye-ring:   rgba(120,60,180,0.6);
+    --eye-rim:    rgba(0, 0, 0, 0.6);
+    --eye-glow:   rgba(190,110,240,0.6);
+}
+body.eldritch .eye-drift { animation-duration: 5s; }
+body.eldritch .eye-look  { animation-duration: 3s; }
+body.eldritch .eye-shape { animation-duration: 4.5s; }
+/* Almond eyes: width clearly greater than height (viewBox is 100x60). */
+.eye1 { top: 15%; left: 18%; width: 180px; height: 108px; transition: all 0.3s ease; }
+.eye2 { top: 58%; left: 82%; width: 146px; height: 88px; transition: all 0.3s ease; }
+.eye3 { top: 24%; left: 76%; width: 122px; height: 73px; transition: all 0.3s ease; }
+/* eye4: a HUGE eye looming dead centre, blurred + darkened so it reads as
+   something enormous far off in the void — behind the near eyes and the UI
+   (z-index -1). Sized in vmin so it stays giant on phone and desktop. Still
+   blinks/wanders/glances like the rest. */
+.eye4 {
+    top: 50%;
+    left: 50%;
+    width: 135vmin;
+    height: 81vmin;
+    transition: all 0.3s ease;
+    z-index: -1;
+    opacity: 0.5;
+    filter: blur(14px) brightness(0.45) saturate(0.85);
+}
+/* Desync the three eyes: negative delays start each mid-cycle so they blink,
+   wander and glance at different moments. */
+.eye1 .eye-shape { animation-delay: 0s; }
+.eye1 .eye-drift { animation-delay: 0s; }
+.eye1 .eye-look  { animation-delay: -1s; }
+.eye2 .eye-shape { animation-delay: -2.1s; }
+.eye2 .eye-drift { animation-delay: -5s; }
+.eye2 .eye-look  { animation-delay: -3.5s; }
+.eye3 .eye-shape { animation-delay: -4s; }
+.eye3 .eye-drift { animation-delay: -8s; }
+.eye3 .eye-look  { animation-delay: -5.5s; }
+.eye4 .eye-shape { animation-delay: -3s; }
+.eye4 .eye-drift { animation-delay: -6s; }
+.eye4 .eye-look  { animation-delay: -4s; }
+/* Phones / narrow portrait: the wide-screen corner layout crowds the centred title
+   and clips eyes off the edges. Re-place the near eyes into the empty "void" band
+   between the header and the plant, and size them in vmin so they scale to the
+   screen. The giant distant eye stays centred (a touch larger to still loom huge). */
+@media (max-width: 600px) {
+    .eye1 { top: 30%; left: 22%; width: 30vmin; height: 18vmin; }
+    .eye2 { top: 40%; left: 76%; width: 22vmin; height: 13.2vmin; }
+    .eye3 { top: 28%; left: 78%; width: 24vmin; height: 14.4vmin; }
+    .eye4 { top: 50%; left: 50%; width: 165vmin; height: 99vmin; }
+}
+/* The almond squashes shut (scaleY -> ~0) and reopens, like an eye blinking. */
+@keyframes blinkEye {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.04); }
+}
+/* Whole-eyeball wander (SVG user units == viewBox units, so it scales per eye). */
+@keyframes eyeDrift {
+    0%, 100% { transform: translate(0px, 0px); }
+    25%      { transform: translate(3px, -2px); }
+    50%      { transform: translate(-3px, 2px); }
+    75%      { transform: translate(2px, 3px); }
+}
+/* The iris looking around inside the sclera. */
+@keyframes eyeLook {
+    0%, 100% { transform: translate(0px, 0px); }
+    15%      { transform: translate(-7px, 3px); }
+    35%      { transform: translate(6px, -3px); }
+    55%      { transform: translate(5px, 4px); }
+    75%      { transform: translate(-5px, -2px); }
+}
+/* Stage-3+ Sanity phase: a pulsing dread vignette layered on top. */
+@keyframes eldritchPulse {
+    0%   { box-shadow: inset 0 0 120px 20px rgba(70, 0, 90, 0.55); }
+    50%  { box-shadow: inset 0 0 240px 70px rgba(120, 0, 150, 0.8); }
+    100% { box-shadow: inset 0 0 120px 20px rgba(70, 0, 90, 0.55); }
+}
+.eldritch::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    animation: eldritchPulse 2.5s ease-in-out infinite;
+}
+
+/* ── Death of the eldritch plant: the watchers die and the world loses purpose ── */
+/* The eyes give up: their wandering stops and they slowly drift back to a dead
+   centre stare. Chromium snaps a transform to base the instant its animation is
+   removed, so the smooth settle is done in JS (settleEyesToCentre in game.js):
+   it pins each group's live transform, then eases it to centre. This rule is the
+   final resting state / fallback. */
+.eldritch-plant.plant-dead .eye-shape,
+.eldritch-plant.plant-dead .eye-drift,
+.eldritch-plant.plant-dead .eye-look {
+    animation: none;
+}
+/* Their colour drains to a dull, lifeless grey and the glow gutters out. */
+.eldritch-plant.plant-dead .eldritch-eye {
+    --eye-sclera: rgba(122, 122, 126, 0.16);
+    --eye-iris:   rgba(140, 140, 146, 0.55);
+    --eye-ring:   rgba(80, 80, 86, 0.5);
+    --eye-rim:    rgba(0, 0, 0, 0.45);
+    --eye-glow:   rgba(120, 120, 128, 0.2);
+    filter: grayscale(1) brightness(0.72);
+    opacity: 0.68;
+    transition: filter 1.3s ease, opacity 1.3s ease;
+}
+/* The giant background eye keeps its far-away blur (the grey filter above would
+   otherwise drop it — and it's the real class .eye4, not .eye-4). Just drained
+   grey and dimmed, so it still looms distant and blurred, but dead. Placed after
+   the rule above so its combined filter wins. */
+.eldritch-plant.plant-dead .eye4 {
+    filter: blur(14px) grayscale(1) brightness(0.4);
+    opacity: 0.44;
+    transition: filter 1.3s ease, opacity 1.3s ease;
+}
+
+/* The whole scene glitches and desaturates — the entity, purposeless, breaking
+   down. A full-screen overlay carries the flicker so no layout element has to be
+   transformed: jumping RGB-split scanlines, plus backdrop-filter bursts that grey,
+   skew and tear everything behind them. Slightly oversized (inset:-14px) so the
+   horizontal jitter never reveals an unfiltered edge. pointer-events:none keeps
+   the Restart menu fully clickable. */
+body.eldritch-plant.plant-dead::before {
+    content: '';
+    position: fixed;
+    inset: -14px;
+    z-index: 3; /* above the dread vignette (2), below the menus (5000) */
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 0, 80, 0.13) 0px,
+        rgba(0, 229, 255, 0.13) 2px,
+        rgba(0, 0, 0, 0) 3px,
+        rgba(0, 0, 0, 0) 6px
+    );
+    mix-blend-mode: screen;
+    animation: deadGlitch 2.6s steps(1, end) infinite;
+}
+@keyframes deadGlitch {
+    /* Long stretches of a dying, desaturated hum... */
+    0%   { opacity: 0.35; transform: translate(0, 0);       backdrop-filter: grayscale(0.55) brightness(0.9); }
+    /* ...punctuated by sharp glitch stutters that tear and hue-shift the screen. */
+    8%   { opacity: 0.9;  transform: translate(-6px, 1px);  backdrop-filter: grayscale(0.8) contrast(1.4) hue-rotate(-18deg); }
+    10%  { opacity: 0.2;  transform: translate(5px, -2px);  backdrop-filter: grayscale(0.5); }
+    30%  { opacity: 0.35; transform: translate(0, 0);       backdrop-filter: grayscale(0.6) brightness(0.88); }
+    52%  { opacity: 0.95; transform: translate(7px, 0);     backdrop-filter: grayscale(0.85) contrast(1.5) hue-rotate(22deg); }
+    54%  { opacity: 0.25; transform: translate(-4px, 2px);  backdrop-filter: grayscale(0.55); }
+    76%  { opacity: 0.4;  transform: translate(0, -1px);    backdrop-filter: grayscale(0.65) brightness(0.85); }
+    88%  { opacity: 0.9;  transform: translate(-8px, 1px);  backdrop-filter: grayscale(0.9) contrast(1.6) hue-rotate(-24deg); }
+    90%  { opacity: 0.2;  transform: translate(3px, 0);     backdrop-filter: grayscale(0.5); }
+    100% { opacity: 0.35; transform: translate(0, 0);       backdrop-filter: grayscale(0.6) brightness(0.9); }
+}
+/* Title and status line jitter and RGB-tear to sell the malfunction. */
+.eldritch-plant.plant-dead .title,
+.eldritch-plant.plant-dead #status {
+    animation: deadTextJitter 0.9s steps(2, end) infinite;
+}
+@keyframes deadTextJitter {
+    0%, 100% { transform: translate(0, 0);    text-shadow: 0 0 6px rgba(120, 120, 130, 0.5); }
+    20%      { transform: translate(-2px, 0);  text-shadow: -2px 0 #ff004c, 2px 0 #00e5ff; }
+    22%      { transform: translate(2px, 1px); text-shadow: 2px 0 #ff004c, -2px 0 #00e5ff; }
+    24%      { transform: translate(0, 0);     text-shadow: 0 0 6px rgba(120, 120, 130, 0.5); }
+    60%      { transform: translate(1px, -1px);text-shadow: -1px 0 #ff004c, 1px 0 #00e5ff; }
+    62%      { transform: translate(0, 0);     text-shadow: 0 0 6px rgba(120, 120, 130, 0.5); }
+}
+/* The rest of the UI corrupts too — buttons, meters, score and the dead plant
+   tear, flicker and colour-glitch, each on its own offset so the breakdown looks
+   chaotic. Uses only opacity / filter / clip-path (never transform) so it can't
+   fight the centring transforms several of these already carry. */
+.eldritch-plant.plant-dead .buttons-container,
+.eldritch-plant.plant-dead .fertilizer-button,
+.eldritch-plant.plant-dead .drain-button,
+.eldritch-plant.plant-dead .meters,
+.eldritch-plant.plant-dead #score,
+.eldritch-plant.plant-dead #flower-image,
+.eldritch-plant.plant-dead .main-menu-button,
+.eldritch-plant.plant-dead .music-button {
+    animation: deadGlitchEl 1.8s steps(1, end) infinite;
+}
+/* Desync so they don't all tear on the same beat. */
+.eldritch-plant.plant-dead .fertilizer-button { animation-delay: -0.2s; }
+.eldritch-plant.plant-dead .drain-button      { animation-delay: -0.5s; }
+.eldritch-plant.plant-dead .meters            { animation-delay: -0.9s; }
+.eldritch-plant.plant-dead #score             { animation-delay: -1.3s; }
+.eldritch-plant.plant-dead #flower-image      { animation-delay: -0.7s; }
+.eldritch-plant.plant-dead .main-menu-button  { animation-delay: -1.1s; }
+.eldritch-plant.plant-dead .music-button      { animation-delay: -1.5s; }
+@keyframes deadGlitchEl {
+    0%, 44%, 100% { opacity: 1;    filter: none;                             clip-path: none; }
+    46%           { opacity: 0.85; filter: hue-rotate(-28deg) contrast(1.45); clip-path: inset(18% 0 46% 0); }
+    47%           { opacity: 1;    filter: hue-rotate(24deg) contrast(1.5);   clip-path: inset(58% 0 8% 0); }
+    48%           { opacity: 0.7;  filter: invert(0.12) brightness(1.3);      clip-path: inset(0 0 66% 0); }
+    49%           { opacity: 1;    filter: none;                             clip-path: none; }
+    78%           { opacity: 0.9;  filter: contrast(1.6) hue-rotate(30deg);   clip-path: inset(34% 0 30% 0); }
+    79%           { opacity: 0.75; filter: none;                             clip-path: inset(68% 0 6% 0); }
+    80%           { opacity: 1;    filter: none;                             clip-path: none; }
+}
+/* "Begin Again" restart CTA — shown only when the secret plant has BLOOMED
+   (body has both .eldritch-plant, the secret plant, and .spring, added at any
+   bloom). Sits below the bloomed plant in the space the hidden controls vacate.
+   Not shown on death. */
+.start-over-button {
+    display: none;
+    position: fixed;
+    left: 50%;
+    top: 78%;
+    transform: translate(-50%, -50%);
+    z-index: 1500;
+    font-family: 'Walter Turncoat', cursive;
+    font-size: 18px;
+    letter-spacing: 1px;
+    padding: 13px 30px;
+    color: #f0e6ff;
+    background: linear-gradient(160deg, #2a1540, #140a24);
+    border: 2px solid #7b3fb0;
+    border-radius: 15px;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+    cursor: url('music and images/pointer 32px.png'), auto;
+    animation: startOverPulse 2s ease-in-out infinite;
+}
+body.eldritch-plant.spring .start-over-button { display: block; }
+.start-over-button:hover {
+    background: linear-gradient(160deg, #3a1c5c, #1e1030);
+    transform: translate(-50%, -54%);
+}
+@keyframes startOverPulse {
+    0%, 100% { box-shadow: 0 0 16px rgba(150, 60, 220, 0.5); border-color: #7b3fb0; }
+    50%      { box-shadow: 0 0 28px rgba(185, 95, 245, 0.85); border-color: #a05fe0; }
+}
+
+/* --- Eldritch UI skin: dark & glowing, with text bright enough to read -------- */
+/* Text glitch: mostly a steady purple glow, then a brief burst of RGB-split
+   chromatic tearing + jitter — matches the meter/flower corruption. */
+@keyframes textGlitch {
+    0%, 80%, 100% { text-shadow: 0 0 8px rgba(150,60,220,0.7); transform: translateX(0) skewX(0deg); opacity: 1; }
+    82% { text-shadow: -2px 0 #ff004c, 2px 0 #00e5ff, 0 0 8px rgba(150,60,220,0.7); transform: translateX(-2px) skewX(-5deg); }
+    84% { text-shadow: 3px 0 #ff004c, -3px 0 #00e5ff; transform: translateX(3px) skewX(4deg); opacity: 0.8; }
+    86% { text-shadow: -1px 0 #ff004c, 1px 0 #00e5ff, 0 0 8px rgba(150,60,220,0.7); transform: translateX(0) skewX(0deg); opacity: 1; }
+    88% { text-shadow: 2px 0 #ff004c, -2px 0 #00e5ff; transform: translateX(-1px) skewX(2deg); opacity: 0.9; }
+    89% { text-shadow: -3px 0 #ff004c, 3px 0 #00e5ff; transform: translateX(2px); }
+    90% { text-shadow: 0 0 8px rgba(150,60,220,0.7); transform: translateX(0) skewX(0deg); opacity: 1; }
+}
+.eldritch-plant #status,
+.eldritch-plant #score,
+.eldritch-plant .title,
+.eldritch-plant .meter-label,
+.eldritch-plant .health-label {
+    color: #f0e6ff;
+    text-shadow: 0 0 8px rgba(150, 60, 220, 0.7);
+    animation: textGlitch 3s linear infinite;
+}
+/* Desync the text elements so they corrupt at different moments. */
+.eldritch-plant .title { animation-delay: 0.4s; }
+.eldritch-plant #score { animation-delay: 1.5s; }
+.eldritch-plant .meter-label,
+.eldritch-plant .health-label { animation-delay: 1.1s; }
+/* The button tray → a dark void slab with a glowing rim. */
+.eldritch-plant .buttons-container {
+    background: linear-gradient(to bottom, #2a1540, #140a24);
+    border-color: #5a2a8a;
+    box-shadow: 0 0 18px rgba(120, 40, 200, 0.45);
+}
+/* All action buttons: dark base + light text + purple glow, each keeping a
+   distinct accent border so they're still tellable apart. */
+.eldritch-plant .water-button,
+.eldritch-plant .sun-button,
+.eldritch-plant .fertilizer-button,
+.eldritch-plant .drain-button,
+.eldritch-plant .warmth-button.eldritch-button {
+    color: #f0e6ff;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 0 12px rgba(120, 40, 200, 0.3);
+}
+.eldritch-plant .water-button { background: linear-gradient(160deg, #3a7ba5, #1f4c69); border-color: #6fc4e8; }
+.eldritch-plant .sun-button { background: linear-gradient(160deg, #a07d2c, #5c4210); border-color: #e6b432; }
+.eldritch-plant .fertilizer-button { background: linear-gradient(160deg, #123f16, #08240a); border-color: #39a039; }
+.eldritch-plant .drain-button { background: linear-gradient(160deg, #4a1020, #280810); border-color: #b03050; }
+.eldritch-plant .warmth-button.eldritch-button { background: linear-gradient(160deg, #4a1d78, #2a0f4d); border-color: #8a4fd0; }
+/* The round menu / music buttons → dark discs with a purple glow. */
+.eldritch-plant .main-menu-button,
+.eldritch-plant .music-button {
+    background: #1a0d2e;
+    border-color: #7b3fb0;
+    color: #f0e6ff;
+    box-shadow: 0 0 14px rgba(120, 40, 200, 0.5);
+}
+/* Keep the hover on-theme instead of flashing white. */
+.eldritch-plant .main-menu-button:hover,
+.eldritch-plant .music-button:hover {
+    background: #3a1c5c;
+    border-color: #a05fe0;
+    box-shadow: 0 0 22px rgba(160, 70, 230, 0.75);
+}
+/* Meter tracks → dark, so the colored fills glow against the void. */
+.eldritch-plant .meter-bar,
+.eldritch-plant .health-bar {
+    background-color: #241436;
+    border-color: #4a2a6a;
+}
+/* --- Cosmetic meter glitch (replaces the old safe-zone jitter) --------------- */
+/* The bars are fair & stable now; the "wrongness" is purely visual. Faint constant
+   chromatic aberration on the fills, then a brief datamosh burst that desyncs per
+   bar: the track tears + blinks fully out, and the fill's colours corrupt. No
+   gameplay effect. */
+/* steps(1,end) on the pre-blink keyframes makes the opacity SNAP (hard cut) and
+   the following keyframe HOLDS it, so the bar genuinely vanishes for a visible
+   window (~110ms) instead of just dipping through 0 for one interpolated instant. */
+@keyframes meterGlitch {
+    0%, 84%   { transform: translateX(0) skewX(0deg);    clip-path: inset(0 0 0 0);     opacity: 1; }
+    85%       { transform: translateX(-4px) skewX(-8deg); clip-path: inset(25% 0 50% 0); opacity: 1;
+                animation-timing-function: steps(1, end); }
+    86%       { transform: translateX(-4px) skewX(-8deg); clip-path: inset(25% 0 50% 0); opacity: 0; }   /* snap OUT */
+    90.3%     { transform: translateX(3px) skewX(4deg);   clip-path: inset(55% 0 15% 0); opacity: 0;      /* held gone ~110ms */
+                animation-timing-function: steps(1, end); }
+    90.6%     { transform: translateX(3px) skewX(4deg);   clip-path: inset(55% 0 15% 0); opacity: 1; }    /* snap BACK */
+    91.4%     { transform: translateX(-2px) skewX(0deg);  clip-path: inset(35% 0 35% 0); opacity: 1;
+                animation-timing-function: steps(1, end); }
+    91.9%     { opacity: 0; }                                                                             /* quick 2nd blink */
+    92.4%     { transform: translateX(1px);               clip-path: inset(10% 0 60% 0); opacity: 1; }
+    93.5%, 100% { transform: translateX(0) skewX(0deg);  clip-path: inset(0 0 0 0);     opacity: 1; }
+}
+/* The fill's colour corrupts during the burst (chromatic split at rest). Flashes
+   are timed to the moments the bar is VISIBLE (it's blacked out ~86-90%). */
+@keyframes fillColorGlitch {
+    0%, 83%, 100% { filter: drop-shadow(1px 0 0 rgba(255,0,80,0.4)) drop-shadow(-1px 0 0 rgba(0,230,255,0.4)); }
+    84.5% { filter: hue-rotate(130deg) saturate(2.4) drop-shadow(2px 0 0 rgba(255,0,80,0.8)) drop-shadow(-2px 0 0 rgba(0,230,255,0.8)); }
+    90.8% { filter: invert(1) hue-rotate(70deg) saturate(2); }
+    91.5% { filter: hue-rotate(-110deg) saturate(2.6) brightness(1.4); }
+    92.4% { filter: hue-rotate(220deg) saturate(2); }
+    93.5% { filter: drop-shadow(1px 0 0 rgba(255,0,80,0.4)) drop-shadow(-1px 0 0 rgba(0,230,255,0.4)); }
+}
+.eldritch-plant .meter-bar,
+.eldritch-plant .health-bar {
+    animation: meterGlitch 2.6s linear infinite;
+}
+.eldritch-plant .meter-fill {
+    animation: fillColorGlitch 2.6s linear infinite;
+}
+/* Desync each bar (and its fill) so they corrupt independently, like real datamosh. */
+.eldritch-plant .meters .meter-row:nth-child(2) .meter-bar,
+.eldritch-plant .meters .meter-row:nth-child(2) .meter-fill { animation-delay: 0.9s; }
+.eldritch-plant #warmth-row .meter-bar,
+.eldritch-plant #warmth-row .meter-fill { animation-delay: 1.7s; }
+.eldritch-plant #health-row .health-bar,
+.eldritch-plant #health-row .health-fill { animation-delay: 1.3s; }
+
 .menu-title-area {
     display: flex;
     align-items: center;
@@ -935,6 +1503,11 @@ html {
         margin: 15px auto;
         padding: 15px;
     }
+    .drain-button {
+        height: 60px;
+        font-size: 18px;
+        padding: 14px 24px;
+    }
     .fertilizer-notification {
         /* .flower has a transform, so this fixed element is positioned relative
            to the flower box. Anchor the ring's bottom to the plant's base
@@ -995,21 +1568,27 @@ html {
         transform: translateX(-50%);
     }
     #flower-image {
-        width: min(170px, 24vh);
-        height: min(170px, 24vh);
+        /* Sized to the vertical gap between the fixed score text and the button
+           tray. The plant is anchored by % from the bottom while the score is a
+           fixed px from the top, so a plain vh cap overlapped the score on
+           shorter phones. calc(56vh - 240px) subtracts that fixed offset so the
+           plant shrinks to fit on short screens (keeps ~55px clearance from the
+           score on all tested phone heights); min() caps it on tall phones. */
+        width: min(280px, calc(56vh - 240px));
+        height: min(280px, calc(56vh - 240px));
     }
     #status {
         font-size: 17px;
         white-space: normal;
         overflow: visible;
         text-overflow: clip;
-        top: 68px;
-        padding: 0 70px;
-        line-height: 1.4;
+        top: 60px;
+        padding: 0 30px;
+        line-height: 1.2;
     }
     #score {
         font-size: 14px;
-        top: 124px;
+        top: 114px;
         padding: 0 16px;
     }
     .meter-label,
@@ -1161,9 +1740,6 @@ html {
     }
     body.warmth-active .fertilizer-button {
         top: 70%;
-        height: 54px;
-        font-size: 16px;
-        padding: 10px 18px;
     }
     body.warmth-active .meter-row,
     body.warmth-active .warmth-row {
@@ -1175,6 +1751,39 @@ html {
     }
     body.warmth-active .meters {
         bottom: 50px;
+    }
+    /* Root rot: place the Drain button BESIDE the Fertilizer rather than below it.
+       Below-and-fixed (top:78%) collided with the meter bars in the late phase,
+       and forced the fertilizer to tuck up against the tray. Side-by-side frees
+       that vertical space so nothing overlaps. */
+    body.drain-active .fertilizer-button {
+        left: 29%;
+        top: 73%;
+    }
+    body.drain-active .drain-button {
+        top: 73%;
+        left: 71%;
+    }
+    /* In the late phase, keep the fertilizer at its normal 70% (don't tuck to the
+       66% used to make room for a 4th meter row) and match the Drain to it. */
+    body.warmth-active.drain-active .fertilizer-button {
+        top: 70%;
+    }
+    body.warmth-active.drain-active .drain-button {
+        top: 70%;
+    }
+    /* Keep Drain and Fertilizer the exact same size when shown side by side. The
+       Drain only appears in the late phase, where health-active shrinks the
+       Fertilizer (54px/16px) but not the Drain (60px/18px) — making Drain look
+       bigger. Pin both to one identical size so they always match. Placed last so
+       it wins over the per-state fertilizer sizing above. */
+    body.drain-active .fertilizer-button,
+    body.drain-active .drain-button {
+        width: 122px;
+        height: 56px;
+        padding: 10px 16px;
+        font-size: 16px;
+        box-sizing: border-box;
     }
 }
 

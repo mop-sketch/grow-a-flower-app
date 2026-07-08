@@ -19,6 +19,7 @@ const entries = [
   'script.js',
   'game.js',
   'tutorial.js',
+  'debug.js',
   'fonts',
   'flower',
   'music and images',

@@ -9,8 +9,12 @@ let fertilizer = 0;
 let sunlight = 50;
 let growthStage = 0;
 let dead = false;
+let eyesSettled = false;    // one-shot guard: eyes ease to centre once on death
 let heatWaveTicks = 0;
 let rainstormTicks = 0;
+let droughtTicks = 0;
+let windTicks = 0;
+let fungalActive = false;
 let health = 100;
 let pestActive = false;
 let warmthButtonShown = false;
@@ -20,6 +24,9 @@ let menuOpen = false;
 let score = 0;
 let scoreSaved = false;
 let tutorialActive = false; // set by tutorial.js; pauses the decay loop
+let entityRevealActive = false; // brief dramatic hold when the secret entity first appears
+let debugGodMode = false;   // set by debug.js (?debug=1): meters/health never kill
+let debugTickMs = 1000;     // set by debug.js: tick speed (fast-forward / slow-mo)
 
 const upgrades = { decay: 0, fertilizer: 0, safe_zone: 0, weather: 0 };
 let currentUpgradeChoices = [];
@@ -65,18 +72,112 @@ const DIFFICULTIES = {
 // Active tuning. Replaced when the player picks a difficulty; defaults to easy.
 let settings = DIFFICULTIES.easy;
 
+function mod(key, fallback) {
+    return currentPlant.modifiers?.[key] ?? fallback;
+}
+
+// Does the current plant face this real-world hazard? Events only spawn for
+// hazards in the plant's list (see PLANT_POOL).
+function hasHazard(id) {
+    return (currentPlant.hazards || []).includes(id);
+}
+
+// The stage-3+ late phase reuses the same 4th-meter machinery (a meter that
+// decays and must be tapped back into the safe zone), re-skinned per climate.
+const LATE_PHASES = {
+    winter: { meterLabel: "Warmth\u{1F525}", btnLabel: "Warmth", bodyClass: "winter", btnClass: "",
+              tip: "It's getting cold! Tap Warmth to keep your plant from freezing - keep it inside the safe zone too.",
+              deathMsg: "Plant froze in the cold" },
+    heat:   { meterLabel: "Humidity\u{1F4A6}", btnLabel: "Humidify", bodyClass: "heat-season", btnClass: "humidify-button",
+              tip: "Heat season! The air dries out fast - tap Humidify to keep moisture in the safe zone.",
+              deathMsg: "Plant wilted in the heat" },
+    eldritch: { meterLabel: "Sanity\u{1F300}", btnLabel: "Focus", bodyClass: "eldritch", btnClass: "eldritch-button",
+              tip: "Reality is thinning. Tap Focus to hold your Sanity in the safe zone.",
+              deathMsg: "Your mind slipped into the bloom" },
+};
+// Every stage-3+ phase class, so switching plants/phases never leaves one stuck.
+const PHASE_CLASSES = ["winter", "heat-season", "eldritch"];
+function latePhase() {
+    return LATE_PHASES[currentPlant.latePhase] || LATE_PHASES.winter;
+}
+
+// Death flavour for the secret (eldritch) plant — a random one shows each death,
+// mixing corrupted-signal / the entity addressing you / ominous lore.
+const SECRET_DEATH_MSGS = [
+    "It stops watching. So do you.",
+    "You were only ever the soil.",
+    "The eyes close. Something else opens.",
+    "The vines recede. The garden forgets you.",
+    "What grew here should not have. It knows that now.",
+    "Your mind slipped into the bloom.",
+    "ERROR: entity has left the soil.",
+    "SIGNAL LOST. Entity unresponsive.",
+];
+const SECRET_GERMINATE_FAIL_MSGS = [
+    "The seed refused to wake.",
+    "It chose not to grow. Not for you.",
+];
+const pickMsg = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Every event / late-phase body class, cleared together when the tending view
+// is hidden (menus, win screen) so no ambience overlay lingers.
+const AMBIENCE_CLASSES = ["winter", "heat-season", "heat-wave", "rainstorm", "drought", "wind", "fungal"];
+function clearAmbience() {
+    document.body.classList.remove(...AMBIENCE_CLASSES);
+}
+
+// On death the eyes should drift to a centred, dead stare rather than snap there.
+// Chromium jumps a transform straight to its base the instant an animation is
+// removed, so a CSS transition can't ease it. Instead, FLIP it in JS: read each
+// wandering group's current transform, pin it inline (killing the loop without a
+// jump), force a reflow, then transition that pinned value to centre/open.
+function settleEyesToCentre() {
+    const groups = document.querySelectorAll(".eye-shape, .eye-drift, .eye-look");
+    // Pin each group where it currently is. Setting animation:none first is what
+    // lets the inline transform stick (a running CSS animation outranks inline).
+    groups.forEach((el) => {
+        const current = getComputedStyle(el).transform;
+        el.style.animation = "none";
+        el.style.transition = "none";
+        el.style.transform = current === "none" ? "none" : current;
+    });
+    // Let the pinned start commit for a frame (offsetWidth can't force a reflow on
+    // SVG <g>, so use rAF), then ease each to centre / eye-open.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        groups.forEach((el) => {
+            el.style.transition = "transform 1.6s ease-out";
+            el.style.transform = "none";
+        });
+    }));
+}
+
+// Undo settleEyesToCentre so a fresh plant's eyes wander again.
+function resetEyeSettle() {
+    document.querySelectorAll(".eye-shape, .eye-drift, .eye-look").forEach((el) => {
+        el.style.transition = "";
+        el.style.animation = "";
+        el.style.transform = "";
+    });
+    eyesSettled = false;
+}
+
 function fertThreshold() {
-    return growthStage === 0 ? settings.fert_threshold_start : settings.fert_threshold;
+    const base = growthStage === 0 ? settings.fert_threshold_start : settings.fert_threshold;
+    // Fertilizer is capped at 100 wherever it's generated, so a threshold above
+    // that can never be met and the plant gets stuck forever. This bit Rose on
+    // Hard (95 base + 15 fertThresholdDelta = 110). Clamp so it's always reachable.
+    return Math.min(base + mod("fertThresholdDelta", 0), 100);
 }
 
 function safeZone() {
-    const safeMin = Math.max(35 - upgrades.safe_zone * 5, 20);
-    const safeMax = Math.min(65 + upgrades.safe_zone * 5, 80);
+    const widen = mod("safeZoneDelta", 0);
+    const safeMin = Math.max(35 - upgrades.safe_zone * 5 - widen, 20);
+    const safeMax = Math.min(65 + upgrades.safe_zone * 5 + widen, 80);
     return [safeMin, safeMax];
 }
 
 function finalScore() {
-    return Math.round(score * settings.score_mult);
+    return Math.round(score * settings.score_mult * mod("scoreMult", 1));
 }
 
 function getBestScore() {
@@ -109,16 +210,69 @@ const UPGRADE_INFO = {
 };
 const MAX_UPGRADE_LEVEL = 3;
 
-const STAGES = [
-    "flower/Seed.png",
-    "flower/Sprout.png",
-    "flower/Seedling.png",
-    "flower/YoungPlant.png",
-    "flower/OlderPlant.png",
-    "flower/Budding.png",
-    "flower/Flowering.png",
+// Every plant's art follows the same 7-stage naming convention inside its own
+// flower/<id>/ folder (plus a DeadPlant.png for the death state).
+function plantStages(id) {
+    return [
+        `flower/${id}/Seed.png`,
+        `flower/${id}/Sprout.png`,
+        `flower/${id}/Seedling.png`,
+        `flower/${id}/YoungPlant.png`,
+        `flower/${id}/OlderPlant.png`,
+        `flower/${id}/Budding.png`,
+        `flower/${id}/Flowering.png`,
+    ];
+}
+
+// Each plant only faces the real-world problems it actually struggles with
+// (`hazards`), and its stage-3+ late phase is themed to its climate (`latePhase`:
+// "winter" = cold/frost, "heat" = drought/heat season). See mechanics in tick().
+const STARTER_PLANT = { id: "flower", name: "Flower",
+    stages: [
+        "flower/Seed.png",
+        "flower/Sprout.png",
+        "flower/Seedling.png",
+        "flower/YoungPlant.png",
+        "flower/OlderPlant.png",
+        "flower/Budding.png",
+        "flower/Flowering.png",
+    ],
+    deadImage: "flower/DeadPlant.png",
+    hazards: ["heat", "rain", "pests"], latePhase: "winter", artScale: 0.82 };
+
+// `artScale` shrinks the wide "bush" plants so they don't dwarf the thin
+// "stalk" plants (sunflower/rose/secret keep the default 1). See .flower-scale.
+const PLANT_POOL = [
+    { id: "cactus", name: "Cactus", stages: plantStages("cactus"), deadImage: "flower/cactus/DeadPlant.png",
+      desc: "Loves sun & heat, barely needs water. But overwatering rots its roots.",
+      hazards: ["rain", "fungal"], latePhase: "heat", artScale: 0.85,
+      modifiers: { waterDecayMult: 0.4, sunDecayMult: 1.6, fungalDrainMult: 1.5 } },
+    { id: "sunflower", name: "Sunflower", stages: plantStages("sunflower"), deadImage: "flower/sunflower/DeadPlant.png",
+      desc: "Fast bloom in full sun. Thirsty and top-heavy — storms knock it over.",
+      hazards: ["heat", "drought", "wind", "pests"], latePhase: "heat",
+      modifiers: { fertGenMult: 1.25, weatherIntensityMult: 1.4 } },
+    { id: "orchid", name: "Orchid", stages: plantStages("orchid"), deadImage: "flower/orchid/DeadPlant.png",
+      desc: "+50% score, but fussiest of all: narrow safe zone, rots or dries out easily.",
+      hazards: ["fungal", "drought", "pests"], latePhase: "winter", artScale: 0.85,
+      modifiers: { scoreMult: 1.5, safeZoneDelta: -8, eventChanceMult: 1.3 } },
+    { id: "rose", name: "Rose", stages: plantStages("rose"), deadImage: "flower/rose/DeadPlant.png",
+      desc: "Thorns cut pest damage in half, but black-spot fungus plagues it. Slow to bloom.",
+      hazards: ["fungal", "pests", "rain"], latePhase: "winter",
+      modifiers: { pestDrainMult: 0.5, fertThresholdDelta: 15 } },
 ];
-const FINAL_STAGE = STAGES.length - 1;
+// Off-tone finale — not "hardest," just wrong. Score payoff is the highest in
+// the game, but growth feels unstable and the ambience turns unsettling.
+// No dedicated art yet, so it reuses the starter flower's images/dead state.
+const SECRET_PLANT = { id: "secret", name: "???", stages: plantStages("secret"), deadImage: "flower/secret/DeadPlant.png",
+    hazards: ["heat", "rain", "pests", "drought", "fungal", "wind"], latePhase: "eldritch",
+    modifiers: { scoreMult: 2.0 } };
+
+let STAGES = STARTER_PLANT.stages;
+let FINAL_STAGE = STAGES.length - 1;
+let currentPlant = STARTER_PLANT;
+let picksRemaining = 2; // starter + 2 picked plants (3 total) before the secret event
+let grownPlantIds = new Set();
+let sequenceComplete = false;
 
 function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -142,7 +296,7 @@ function showUpgradeMenu() {
     const available = Object.keys(upgrades).filter((k) => upgrades[k] < MAX_UPGRADE_LEVEL);
     shuffle(available);
     currentUpgradeChoices = available.slice(0, 3);
-    document.body.classList.remove("winter", "heat-wave", "rainstorm");
+    clearAmbience();
 
     const cardIds = ["upgrade-option", "upgrade-option1", "upgrade-option2"];
     cardIds.forEach((cardId, i) => {
@@ -183,6 +337,148 @@ function selectUpgrade(index) {
     mysteryMenu = false;
     document.getElementById("upgrade-container").style.display = "none";
     startLoop();
+}
+
+// Push the current plant's per-plant size scale to the .flower-scale wrapper.
+// Set the transform directly (this WebView doesn't re-resolve scale(var(...))
+// when the custom property changes at runtime).
+function applyArtScale() {
+    const el = document.querySelector(".flower-scale");
+    if (el) el.style.transform = `scale(${currentPlant.artScale ?? 1})`;
+}
+
+// Resets tending state and swaps in a new plant, without a full page reload —
+// a lighter-weight version of onRestart() that keeps the plant sequence going.
+function resetTendingState(plant) {
+    currentPlant = plant;
+    grownPlantIds.add(plant.id);
+    STAGES = plant.stages;
+    FINAL_STAGE = STAGES.length - 1;
+    applyArtScale();
+
+    water = 50;
+    sunlight = 50;
+    warmth = 50;
+    fertilizer = 0;
+    growthStage = 0;
+    dead = false;
+    entityRevealActive = false; // beginSecretPlant re-arms this right after, if it's the secret plant
+    health = 100;
+    heatWaveTicks = 0;
+    rainstormTicks = 0;
+    droughtTicks = 0;
+    windTicks = 0;
+    pestActive = false;
+    fungalActive = false;
+    warmthButtonShown = false;
+    // Each new plant starts fresh — upgrades earned on the previous plant don't carry over.
+    Object.keys(upgrades).forEach((k) => { upgrades[k] = 0; });
+
+    document.body.classList.remove("winter", "heat-season", "eldritch", "eldritch-plant", "heat-wave", "rainstorm", "drought", "wind", "fungal", "spring", "health-active", "warmth-active", "plant-dead");
+    resetEyeSettle(); // clear any death-settle inline styles so eyes wander afresh
+    // The eldritch plant warps the whole scene for its entire growth (every entry path).
+    if (plant.latePhase === "eldritch") document.body.classList.add("eldritch-plant");
+    document.getElementById("controls-container").style.display = "";
+    document.getElementById("health-row").style.display = "";
+    document.getElementById("warmth-row").style.display = "";
+    document.getElementById("warmth-btn").style.display = "";
+    document.getElementById("warmth-btn").classList.remove("humidify-button", "eldritch-button");
+    document.getElementById("drain-btn").style.display = "none";
+    document.body.classList.remove("drain-active");
+    document.getElementById("lore-btn").innerText = " ???"; // reset until this plant blooms
+    document.getElementById("sun-btn").style.left = "";
+    document.getElementById("water-btn").style.left = "";
+    document.getElementById("flower-image").src = STAGES[0];
+
+    startLoop();
+    updateStatus();
+}
+
+function showPlantChoiceMenu() {
+    const candidates = PLANT_POOL.filter((p) => !grownPlantIds.has(p.id));
+    shuffle(candidates);
+    const choices = candidates.slice(0, 2);
+    clearAmbience();
+
+    const round = 2 - picksRemaining + 1;
+    document.getElementById("plant-choice-subtext").textContent = `Pick your next plant (choice ${round} of 2)`;
+
+    const cardIds = ["plant-choice-option0", "plant-choice-option1"];
+    cardIds.forEach((cardId, i) => {
+        const card = document.getElementById(cardId);
+        if (i < choices.length) {
+            const plant = choices[i];
+            card.innerHTML =
+                `<h3 style="margin:0 0 4px 0;color:#000000;font-size:14px;">${plant.name}</h3>` +
+                `<p style="color:#000000;font-size:11px;margin:0 0 10px 0;text-align:center;">${plant.desc}</p>` +
+                `<button class="upgrade-button" id="plant-choice-btn-${i}">Choose</button>`;
+            card.style.display = "flex";
+            card.style.flexDirection = "column";
+            card.style.alignItems = "center";
+            card.style.justifyContent = "center";
+            card.style.padding = "10px";
+            const btn = document.getElementById(`plant-choice-btn-${i}`);
+            btn.onclick = () => onChoosePlant(plant);
+        } else {
+            card.innerHTML = "";
+            card.style.display = "none";
+        }
+    });
+
+    document.getElementById("plant-choice-container").style.display = "block";
+}
+
+function onChoosePlant(plant) {
+    picksRemaining -= 1;
+    document.getElementById("plant-choice-container").style.display = "none";
+    resetTendingState(plant);
+    document.getElementById("status").innerHTML = `\u{1F331} A ${plant.name} seed has been planted!`;
+}
+
+function beginSecretPlant() {
+    resetTendingState(SECRET_PLANT); // applies the .eldritch-plant ambience for us
+    // Dark ambience: always on for the secret plant — the music button can't mute it.
+    const ambience = document.getElementById("ambience-audio");
+    ambience.volume = 0.5;
+    ambience.currentTime = 0;
+    ambience.play();
+    // Unknown-creature music: the toggleable layer. The music button controls it (its src is
+    // swapped in here); it only auto-starts if the player already had music playing.
+    // NOTE: capture the playing state BEFORE swapping src — assigning .src resets the element
+    // to paused, so checking musicAudio.paused after the swap would always be true.
+    const musicAudio = document.getElementById("music-audio");
+    const musicWasOn = !musicAudio.paused;
+    musicAudio.src = "music and images/Unknown-creature-music.mp3";
+    if (musicWasOn) {
+        ambience.pause();
+        musicAudio.volume = 0.8;
+        musicAudio.currentTime = 0;
+        musicAudio.play();
+    }
+    else {
+        ambience.play();
+    }
+    document.getElementById("status").innerHTML = "ERROR: unknown_entity_appeared";
+    // Let the entity linger: freeze the decay loop so the message + eldritch reveal
+    // hold for a few seconds before tending begins, instead of flashing by in one tick.
+    entityRevealActive = true;
+    setTimeout(() => { entityRevealActive = false; }, 4500);
+}
+
+// After an (intermediate) bloom, show Keep Playing / Restart buttons inline below
+// the bloomed flower, rather than jumping straight into the next-plant choice.
+function showWinContinue() {
+    document.getElementById("win-continue-container").style.display = "flex";
+}
+
+function continueAfterWin() {
+    document.getElementById("win-continue-container").style.display = "none";
+    if (picksRemaining > 0) {
+        showPlantChoiceMenu();
+    } else {
+        document.getElementById("status").innerHTML = "Something else has taken root...";
+        beginSecretPlant();
+    }
 }
 
 function getBarColor(value, defaultColor) {
@@ -226,16 +522,31 @@ function updateStatus() {
         pestActive = false;
         document.body.classList.remove("health-active");
     }
+    // Root rot is cured by drying the soil out (mirror of the pest cure above).
+    if (fungalActive && water <= 30) {
+        healthRow.style.display = "none";
+        fungalActive = false;
+        document.body.classList.remove("health-active", "fungal");
+    }
+    // The Drain button is only offered while root rot is active.
+    document.getElementById("drain-btn").style.display = fungalActive ? "block" : "none";
+    document.body.classList.toggle("drain-active", fungalActive); // lays Drain beside Fertilizer
     const statusEl = document.getElementById("status");
     if (heatWaveTicks > 0) {
         statusEl.innerHTML = `\u{1F321}️ Heat wave! (${heatWaveTicks}s remaining)`;
-    } else if (health === 0) {
+    } else if (health === 0 && !debugGodMode) {
         dead = true;
         saveHighScore();
-        flowerImage.src = "flower/DeadPlant.png";
+        flowerImage.src = currentPlant.deadImage;
         statusEl.innerHTML = `Plant has died due to poor health❤️. Score: ${finalScore()} (Best: ${getBestScore()}). Restart to try again.`;
     } else if (pestActive && !dead) {
         statusEl.innerHTML = "Pests are active\u{1F41B}! Add sunlight to burn them off.";
+    } else if (fungalActive && !dead) {
+        statusEl.innerHTML = "\u{1F344} Root rot! Tap Drain to dry out the soil.";
+    } else if (windTicks > 0) {
+        statusEl.innerHTML = "\u{1F4A8} Strong winds battering your plant!";
+    } else if (droughtTicks > 0) {
+        statusEl.innerHTML = `\u{2600}\u{FE0F} Drought! (${droughtTicks}s remaining) Keep watering.`;
     } else if (rainstormTicks > 0) {
         statusEl.innerHTML = `\u{1F327}️ Rainstorm! (${rainstormTicks}s remaining)`;
     } else if (fertilizer >= fertThreshold() && (water >= safeMin && water <= safeMax) && (sunlight >= safeMin && sunlight <= safeMax)) {
@@ -245,48 +556,70 @@ function updateStatus() {
     } else {
         statusEl.innerHTML = "Fertilizer is at unsafe levels❌";
     }
-    if (heatWaveTicks > 0) {
-        document.body.classList.remove("winter");
-        document.body.classList.add("heat-wave");
+    // The late-phase ambience (snow for winter, shimmer for heat, dread for eldritch) is
+    // this plant's phase class; every other phase class must never linger.
+    const phaseClass = latePhase().bodyClass;
+    PHASE_CLASSES.filter((c) => c !== phaseClass).forEach((c) => document.body.classList.remove(c));
+    const weatherActive = heatWaveTicks > 0 || rainstormTicks > 0 || droughtTicks > 0 || windTicks > 0;
+    document.body.classList.toggle("heat-wave", heatWaveTicks > 0);
+    document.body.classList.toggle("rainstorm", rainstormTicks > 0);
+    document.body.classList.toggle("drought", droughtTicks > 0);
+    document.body.classList.toggle("wind", windTicks > 0);
+    document.body.classList.toggle("fungal", fungalActive);
+    // The eldritch phase's ambience (dread pulse on the rims + purple eyes) is meant
+    // to be constant — reality-thinning shouldn't blink off when a weather event
+    // fires. Keep it through weather; other phases (winter snow, heat shimmer) still
+    // yield to the weather overlay as before.
+    const keepThroughWeather = currentPlant.latePhase === "eldritch";
+    if (growthStage >= 3 && (!weatherActive || keepThroughWeather)) {
+        document.body.classList.add(phaseClass);
     } else {
-        document.body.classList.remove("heat-wave");
-    }
-    if (rainstormTicks > 0) {
-        document.body.classList.remove("winter");
-        document.body.classList.add("rainstorm");
-    } else {
-        document.body.classList.remove("rainstorm");
-    }
-    if (growthStage >= 3) {
-        if (heatWaveTicks === 0 && rainstormTicks === 0) {
-            document.body.classList.add("winter");
-        }
-    } else {
-        document.body.classList.remove("winter");
+        document.body.classList.remove(phaseClass);
     }
 
-    if (water <= 20 || sunlight <= 20 || water >= 80 || sunlight >= 80 || (warmth <= 20 || warmth >= 80)) {
+    if (!debugGodMode && (water <= 20 || sunlight <= 20 || water >= 80 || sunlight >= 80 || (warmth <= 20 || warmth >= 80))) {
         let ring = document.querySelector(".fertilizer-notification");
         ring.style = " filter: blur(10px) opacity(0);";
+        // Ease the watching eyes to a dead centre stare (once), while they're still
+        // mid-wander — capture must happen before the CSS freeze snaps them.
+        if (!eyesSettled && document.body.classList.contains("eldritch-plant")) {
+            settleEyesToCentre();
+            eyesSettled = true;
+        }
         dead = true;
         saveHighScore();
-        flowerImage.src = "flower/DeadPlant.png";
-        document.body.classList.remove("heat-wave", "rainstorm", "winter");
-        statusEl.innerHTML = `Plant has died. Score: ${finalScore()} (Best: ${getBestScore()}). Restart to try again.`;
+        flowerImage.src = currentPlant.deadImage;
+        document.body.classList.remove("heat-wave", "rainstorm", "winter", "heat-season", "drought", "wind", "fungal");
+        // When the 4th (late-phase) meter is the culprit, name the climate cause.
+        const phaseKilled = growthStage >= 3 && (warmth <= 20 || warmth >= 80) &&
+            water > 20 && water < 80 && sunlight > 20 && sunlight < 80;
+        // The secret (eldritch) plant gets its own death flavour instead of the
+        // generic line — a random pool entry, with a themed "Begin again." prompt.
+        const isSecret = currentPlant.latePhase === "eldritch";
+        const cause = phaseKilled ? latePhase().deathMsg : "Plant has died";
+        statusEl.innerHTML = isSecret
+            ? `${pickMsg(SECRET_DEATH_MSGS)} Score: ${finalScore()} (Best: ${getBestScore()}). Begin again.`
+            : `${cause}. Score: ${finalScore()} (Best: ${getBestScore()}). Restart to try again.`;
         if (growthStage === 0) {
             flowerImage.src = STAGES[0];
-            statusEl.innerHTML = `Plant has failed to germinate. Score: ${finalScore()} (Best: ${getBestScore()})`;
+            statusEl.innerHTML = isSecret
+                ? `${pickMsg(SECRET_GERMINATE_FAIL_MSGS)} Score: ${finalScore()} (Best: ${getBestScore()}). Begin again.`
+                : `Plant has failed to germinate. Score: ${finalScore()} (Best: ${getBestScore()})`;
         }
     } else {
         flowerImage.src = STAGES[growthStage];
     }
 
     const ring = document.querySelector(".fertilizer-notification");
-    if (fertilizer >= fertThreshold() && (water >= safeMin && water <= safeMax) && (sunlight >= safeMin && sunlight <= safeMax) && !(rainstormTicks > 0 || heatWaveTicks > 0 || pestActive)) {
+    if (fertilizer >= fertThreshold() && (water >= safeMin && water <= safeMax) && (sunlight >= safeMin && sunlight <= safeMax) && !(rainstormTicks > 0 || heatWaveTicks > 0 || droughtTicks > 0 || windTicks > 0 || pestActive || fungalActive)) {
         ring.style = " filter: blur(0px) opacity(1);";
     } else {
         ring.style = " filter: blur(10px) opacity(0);";
     }
+
+    // Death drains the scene of purpose: the watching eyes freeze and go grey, and
+    // the whole world starts to glitch (all handled in CSS off this one class).
+    document.body.classList.toggle("plant-dead", dead);
 }
 
 function onWater() {
@@ -303,6 +636,13 @@ function onSunlight() {
     updateStatus();
 }
 
+// Drain excess water to dry out the soil — the active cure for root rot.
+function onDrain() {
+    if (dead) return;
+    water = Math.max(water - 5, 0);
+    updateStatus();
+}
+
 function onFertilizer() {
     if (dead) return;
     const loreBtn = document.getElementById("lore-btn");
@@ -314,17 +654,35 @@ function onFertilizer() {
         advanceStage();
         ring.style = " filter: blur(10px) opacity(0);";
         if (growthStage === FINAL_STAGE) {
-            loreBtn.innerText = "Touch the flower";
-            const winAudio = document.getElementById("win-audio");
-            winAudio.currentTime = 0;
-            winAudio.play();
-            document.body.classList.remove("winter", "heat-wave", "rainstorm");
+            // The secret plant's off-tone finale gets its own glitchy bloom sound
+            // instead of the cheerful winning sound every other plant uses.
+            const bloomAudio = document.getElementById(
+                currentPlant === SECRET_PLANT ? "secret-win-audio" : "win-audio"
+            );
+            bloomAudio.currentTime = 0;
+            bloomAudio.play();
+            clearAmbience();
             document.body.classList.add("spring");
             control.style.display = "none";
+            document.getElementById("drain-btn").style.display = "none";
+            document.body.classList.remove("drain-active");
             document.getElementById("flower-image").src = STAGES[FINAL_STAGE];
-            saveHighScore();
-            document.getElementById("status").innerHTML = `\u{1F338} Your flower has fully bloomed! You win! Score: ${finalScore()} (Best: ${getBestScore()})`;
-            launchConfetti();
+            // No celebratory confetti for the secret plant — its bloom is an off-tone,
+            // unsettling finale, not a victory.
+            if (currentPlant !== SECRET_PLANT) launchConfetti();
+            // The ??? menu button becomes usable at any bloom — label it to match.
+            loreBtn.innerText = "Touch the flower";
+
+            if (currentPlant === SECRET_PLANT) {
+                saveHighScore();
+                sequenceComplete = true;
+                document.getElementById("status").innerHTML = `Error:👁you_have_won! or_did_we?👁 Score: ${finalScore()} (Best: ${getBestScore()})`;
+            } else {
+                // Intermediate bloom: pause on a Keep Playing / Restart screen instead of
+                // jumping straight into the next-plant choice.
+                document.getElementById("status").innerHTML = `\u{1F338} Your ${currentPlant.name} has fully bloomed!`;
+                showWinContinue();
+            }
         } else {
             updateStatus();
             showUpgradeMenu();
@@ -348,20 +706,21 @@ function onMainMenu() {
         menuContainer.style.display = "none";
         menuOpen = false;
     } else {
-        document.body.classList.remove("winter", "heat-wave", "rainstorm");
+        clearAmbience();
         menuOpen = true;
         menuContainer.style.display = "block";
     }
 }
 
 function onRestart() {
-    document.body.classList.remove("winter", "heat-wave", "rainstorm");
+    clearAmbience();
     document.location.reload();
 }
 
 function onLore() {
     const menuContainer = document.getElementById("menu-container");
     const flowerImage = document.getElementById("flower");
+    // Works at any bloomed flower (final stage), not only the secret finale.
     if (growthStage === FINAL_STAGE) {
         const growAudio = document.getElementById("grow-audio");
         growAudio.currentTime = 0;
@@ -371,10 +730,13 @@ function onLore() {
         darkAudio.playbackRate = 2;
         darkAudio.play();
         document.getElementById("status").innerHTML = "Error Code: Unknown";
-        document.body.classList.remove("spring");
+        document.body.classList.remove("spring", "eldritch", "eldritch-plant");
         document.body.classList.add("lore-mode");
         glitchTitle();
         menuContainer.style.display = "none";
+        menuOpen = false;
+        // Let the lore take over the screen — hide the bloom Keep Playing / Restart buttons.
+        document.getElementById("win-continue-container").style.display = "none";
         const springs = document.getElementById("spring1");
         const springs2 = document.getElementById("spring2");
         flowerImage.innerHTML = "<p class='spinning-gear'>⚙</p>";
@@ -391,13 +753,17 @@ let loopTimer = null;
 
 function startLoop() {
     if (loopTimer !== null) return; // avoid running two loops at once
-    loopTimer = setTimeout(tick, 1000);
+    loopTimer = setTimeout(tick, debugTickMs);
 }
 
 function tick() {
     loopTimer = null;
     if (tutorialActive) {
-        loopTimer = setTimeout(tick, 1000); // paused for a tutorial/tip: skip decay, keep polling
+        loopTimer = setTimeout(tick, debugTickMs); // paused for a tutorial/tip: skip decay, keep polling
+        return;
+    }
+    if (entityRevealActive) {
+        loopTimer = setTimeout(tick, debugTickMs); // hold the entity reveal: freeze decay, keep the message
         return;
     }
     const healthRow = document.getElementById("health-row");
@@ -407,34 +773,58 @@ function tick() {
     const warmthRow = document.getElementById("warmth-row");
 
     if (growthStage === 3 && warmthButtonShown === false && !mysteryMenu) {
+        const phase = latePhase();
         sunBtn.style.left = "15%";
         waterBtn.style.left = "85%";
         warmthBtn.style.display = "block";
+        warmthBtn.textContent = phase.btnLabel;
+        warmthBtn.classList.remove("humidify-button", "eldritch-button");
+        if (phase.btnClass) warmthBtn.classList.add(phase.btnClass);
+        const warmthLabel = document.querySelector("#warmth-row .meter-label");
+        if (warmthLabel) warmthLabel.innerHTML = phase.meterLabel;
         warmthRow.style.display = "flex";
         warmthButtonShown = true;
         document.body.classList.add("warmth-active");
-        maybeShowTip("warmth", "#warmth-btn", "It's getting cold! Tap Warmth to keep your plant cozy — keep it inside the safe zone too.");
+        maybeShowTip("warmth", "#warmth-btn", phase.tip);
     }
     if (dead || growthStage === FINAL_STAGE || mysteryMenu) {
         return; // break: do not reschedule
     }
     if (menuOpen) {
-        loopTimer = setTimeout(tick, 1000); // continue
+        loopTimer = setTimeout(tick, debugTickMs); // continue
         return;
     }
-    if (!pestActive && Math.random() < settings.event_chance && heatWaveTicks === 0 && rainstormTicks === 0 && growthStage > 0) {
-        healthRow.style.display = "flex";
-        pestActive = true;
-        document.body.classList.add("health-active");
-        maybeShowTip("pests", "#health-row", "Pests have appeared! They slowly drain your plant's Health bar. Push Sunlight above the safe zone to burn them off before Health runs out.");
-    }
-    if (rainstormTicks === 0 && Math.random() < settings.event_chance && heatWaveTicks === 0 && !pestActive) {
-        rainstormTicks = settings.weather_duration;
-        maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
-    }
-    if (heatWaveTicks === 0 && Math.random() < settings.event_chance && rainstormTicks === 0 && !pestActive) {
-        heatWaveTicks = settings.weather_duration;
-        maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
+    const eventChance = settings.event_chance * mod("eventChanceMult", 1);
+    const eventBusy = pestActive || fungalActive || heatWaveTicks > 0 || rainstormTicks > 0 || droughtTicks > 0 || windTicks > 0;
+    // One event at a time, and only the real-world hazards this plant is vulnerable to.
+    if (!eventBusy && growthStage > 0) {
+        if (hasHazard("pests") && Math.random() < eventChance) {
+            healthRow.style.display = "flex";
+            pestActive = true;
+            document.body.classList.add("health-active");
+            maybeShowTip("pests", "#health-row", "Pests have appeared! They slowly drain your plant's Health bar. Push Sunlight above the safe zone to burn them off before Health runs out.");
+        } else if (hasHazard("fungal") && Math.random() < eventChance) {
+            healthRow.style.display = "flex";
+            fungalActive = true;
+            document.body.classList.add("health-active");
+            maybeShowTip("fungal", "#health-row", "Root rot! Damp soil is breeding fungus that drains Health. Tap the Drain button to dry the soil out and stop the rot.");
+        } else if (hasHazard("rain") && Math.random() < eventChance) {
+            rainstormTicks = settings.weather_duration;
+            maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
+        } else if (hasHazard("heat") && Math.random() < eventChance) {
+            heatWaveTicks = settings.weather_duration;
+            maybeShowTip("weather", "#status", "Weather swings your meters fast — keep an eye on the status and rebalance to stay safe.");
+        } else if (hasHazard("drought") && Math.random() < eventChance) {
+            droughtTicks = settings.weather_duration;
+            maybeShowTip("drought", "#status", "Drought! The soil is drying out fast - keep tapping Water to survive.");
+        } else if (hasHazard("wind") && Math.random() < eventChance) {
+            windTicks = 3;
+            // A gust immediately knocks the meters around; top-heavy late-stage plants also take some damage.
+            water = Math.max(water - (8 + Math.random() * 10), 0);
+            sunlight = Math.max(sunlight - (8 + Math.random() * 10), 0);
+            if (growthStage >= 3) health = Math.max(health - settings.pest_drain, 0);
+            maybeShowTip("wind", "#status", "Strong winds batter your plant and knock its meters around!");
+        }
     }
     if (water >= 70) {
         sunlight = Math.max(sunlight - 3, 0);
@@ -443,31 +833,51 @@ function tick() {
         water = Math.max(water - 3, 0);
     }
     if (pestActive) {
-        health = Math.max(health - settings.pest_drain, 0);
+        health = Math.max(health - settings.pest_drain * mod("pestDrainMult", 1), 0);
     }
-    const weatherIntensity = Math.max(settings.weather_intensity - upgrades.weather, 1);
+    // Root rot only bites while the soil stays damp; drying it out is the cure (see updateStatus).
+    if (fungalActive && water >= 50) {
+        health = Math.max(health - settings.pest_drain * mod("fungalDrainMult", 1), 0);
+    }
+    const weatherIntensity = Math.max(settings.weather_intensity - upgrades.weather, 1) * mod("weatherIntensityMult", 1);
     if (heatWaveTicks > 0) {
         sunlight = Math.min(sunlight + weatherIntensity, 100);
         water = Math.max(water - weatherIntensity, 0);
         heatWaveTicks -= 1;
         if (growthStage >= 3) {
-            warmth = Math.min(warmth + weatherIntensity, 100);
+            // 4th meter reacts to climate: a winter cold-snap warms up; a heat-season plant dries out.
+            if (currentPlant.latePhase === "heat") {
+                warmth = Math.max(warmth - weatherIntensity, 0);
+            } else {
+                warmth = Math.min(warmth + weatherIntensity, 100);
+            }
         }
     }
-    const decay = Math.max(settings.decay - upgrades.decay * 0.5, 0.25);
+    const baseDecay = Math.max(settings.decay - upgrades.decay * 0.5, 0.25);
+    const waterDecay = baseDecay * mod("waterDecayMult", 1);
+    const sunDecay = baseDecay * mod("sunDecayMult", 1);
+    const warmthDecay = baseDecay * mod("warmthDecayMult", 1);
     if (growthStage >= 3) {
-        warmth = Math.max(warmth - decay, 0);
+        warmth = Math.max(warmth - warmthDecay, 0);
     }
     if (rainstormTicks > 0) {
         water = Math.min(water + weatherIntensity, 100);
         sunlight = Math.min(sunlight - weatherIntensity, 100);
         rainstormTicks -= 1;
     }
-    water = Math.max(water - decay, 0);
-    if (growthStage < FINAL_STAGE) {
-        fertilizer = Math.min(fertilizer + settings.fert_gen + upgrades.fertilizer, 100);
+    if (droughtTicks > 0) {
+        // A dry spell pulls extra water out of the soil on top of the normal decay below.
+        water = Math.max(water - weatherIntensity, 0);
+        droughtTicks -= 1;
     }
-    sunlight = Math.max(sunlight - decay, 0);
+    if (windTicks > 0) {
+        windTicks -= 1;
+    }
+    water = Math.max(water - waterDecay, 0);
+    if (growthStage < FINAL_STAGE) {
+        fertilizer = Math.min(fertilizer + (settings.fert_gen + upgrades.fertilizer) * mod("fertGenMult", 1), 100);
+    }
+    sunlight = Math.max(sunlight - sunDecay, 0);
     score += 1;
     const [sMin, sMax] = safeZone();
     let metersOk = sMin <= water && water <= sMax && sMin <= sunlight && sunlight <= sMax;
@@ -478,12 +888,13 @@ function tick() {
         score += 5;
     }
     updateStatus();
-    loopTimer = setTimeout(tick, 1000);
+    loopTimer = setTimeout(tick, debugTickMs);
 }
 
 function startGame(level) {
     settings = DIFFICULTIES[level];
     document.getElementById("difficulty-container").style.display = "none";
+    applyArtScale(); // size the starter flower (other plants set theirs on switch)
     startLoop();
     if (typeof hasTutorialSeen === "function" && !hasTutorialSeen()) {
         startIntroTutorial();
@@ -495,8 +906,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("sun-btn").addEventListener("click", onSunlight);
     document.getElementById("fertilizer-btn").addEventListener("click", onFertilizer);
     document.getElementById("warmth-btn").addEventListener("click", onWarmth);
+    document.getElementById("drain-btn").addEventListener("click", onDrain);
     document.getElementById("main-menu-btn").addEventListener("click", onMainMenu);
     document.getElementById("restart-btn").addEventListener("click", onRestart);
+    document.getElementById("keep-playing-btn").addEventListener("click", continueAfterWin);
+    document.getElementById("restart-game-btn").addEventListener("click", onRestart);
+    document.getElementById("start-over-btn").addEventListener("click", onRestart);
     document.getElementById("lore-btn").addEventListener("click", onLore);
     document.getElementById("easy-btn").addEventListener("click", () => startGame("easy"));
     document.getElementById("medium-btn").addEventListener("click", () => startGame("medium"));
