@@ -399,11 +399,11 @@ body.lore-mode {
     letter-spacing: 0.4px;
 }
 .zen {
-    background: linear-gradient(160deg, #d6f3f6, #90d9e2);
+    background: linear-gradient(160deg, #dbfbff, #a6f5ff);
     border: 2.5px solid #57bccb;
 }
 .zen:hover {
-    background: linear-gradient(160deg, #c2ecf1, #72cfda);
+    background: linear-gradient(160deg, #bef7ff, #85f1ff);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transform: translateY(-4px) scale(1.03);
 }
@@ -485,6 +485,24 @@ body.lore-mode {
     background: linear-gradient(160deg, #f5e1b8, #e6cfa0);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transform: translateY(-3px);
+}
+/* A moving rainbow fill for an extra-special upgrade title (Steady Hands outside
+   Zen, where it's a rare permanent perk). The gradient is clipped to the glyphs and
+   its position scrolls, so the colours flow through the letters. Repeats its first
+   colour at the end so the loop is seamless. */
+.rainbow-title {
+    background-image: linear-gradient(90deg, #ff004d, #ff9a00, #ffe600, #22d34a, #00b3ff, #8a5cff, #ff004d);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    font-weight: bold;
+    animation: rainbowShift 3s linear infinite;
+}
+@keyframes rainbowShift {
+    from { background-position: 0% 50%; }
+    to   { background-position: 200% 50%; }
 }
 .upgrade-menu {
     width: 500px;

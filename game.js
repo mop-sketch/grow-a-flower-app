@@ -469,8 +469,14 @@ function showUpgradeMenu() {
             const [name, desc] = UPGRADE_INFO[key];
             const level = upgrades[key];
             const stars = "★".repeat(level) + "☆".repeat(maxLevelFor(key) - level);
+            // Steady Hands is a rare permanent perk outside Zen — mark its title with a
+            // moving rainbow fill so it stands out. (In Zen it's an ordinary offer.)
+            const rainbow = key === "steady" && currentDifficulty !== "zen";
+            const titleAttrs = rainbow
+                ? `class="rainbow-title" style="margin:0 0 4px 0;font-size:14px;"`
+                : `style="margin:0 0 4px 0;color:#000000;font-size:14px;"`;
             card.innerHTML =
-                `<h3 style="margin:0 0 4px 0;color:#000000;font-size:14px;">${name}</h3>` +
+                `<h3 ${titleAttrs}>${name}</h3>` +
                 `<div style="color:#654321;font-size:18px;margin-bottom:6px;">${stars}</div>` +
                 `<p style="color:#000000;font-size:11px;margin:0 0 4px 0;text-align:center;">${desc}</p>` +
                 `<p style="color:#ffffff;font-size:11px;margin:0 0 10px 0;">Level ${level} → ${level + 1}</p>` +
