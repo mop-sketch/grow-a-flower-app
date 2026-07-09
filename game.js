@@ -32,7 +32,7 @@ let restarting = false;     // set during onRestart so the unload handlers don't
 let debugGodMode = false;   // set by debug.js (?debug=1): meters/health never kill
 let debugTickMs = 1000;     // set by debug.js: tick speed (fast-forward / slow-mo)
 
-const upgrades = { decay: 0, fertilizer: 0, safe_zone: 0, weather: 0 };
+const upgrades = { decay: 0, fertilizer: 0, safe_zone: 0, weather: 0, steady: 0 };
 let currentUpgradeChoices = [];
 
 // Difficulty presets. "easy" matches the original tuning.
@@ -314,8 +314,22 @@ const UPGRADE_INFO = {
     fertilizer: ["Boost Fertilizer", "Fertilizer generation +1/tick per level"],
     safe_zone: ["Widen Safe Zone", "Fertilizer safe zone expands 5% per level"],
     weather: ["Weather Shield", "Heat wave & rainstorm intensity −1/tick per level"],
+    steady: ["Steady Hands", "Water, Sunlight & Warmth drift back toward the middle on their own"],
 };
 const MAX_UPGRADE_LEVEL = 3;
+// Steady Hands is a normal 3-level upgrade in Zen, but only a single, rare,
+// permanent perk in the other difficulties (see showUpgradeMenu / resetTendingState).
+function maxLevelFor(key) {
+    if (key === "steady" && currentDifficulty !== "zen") return 1;
+    return MAX_UPGRADE_LEVEL;
+}
+// Effective death margin: meters die at <=dm or >=100-dm. Zen's wide margin tightens
+// to the normal 20 once Steady Hands is held, as its balancing cost.
+function deathMargin() {
+    let dm = settings.death_margin ?? 20;
+    if (currentDifficulty === "zen" && upgrades.steady > 0) dm = 20;
+    return dm;
+}
 
 // Every plant's art follows the same 7-stage naming convention inside its own
 // flower/<id>/ folder (plus a DeadPlant.png for the death state).
@@ -401,9 +415,11 @@ function advanceStage() {
 
 function showUpgradeMenu() {
     const available = Object.keys(upgrades).filter((k) =>
-        upgrades[k] < MAX_UPGRADE_LEVEL &&
+        upgrades[k] < maxLevelFor(k) &&
         // Zen already has very slow decay — never offer (so never grant) Slow Decay.
-        !(currentDifficulty === "zen" && k === "decay")
+        !(currentDifficulty === "zen" && k === "decay") &&
+        // Steady Hands is a rare perk outside Zen: only rarely eligible to be offered.
+        !(k === "steady" && currentDifficulty !== "zen" && Math.random() >= 0.15)
     );
     shuffle(available);
     currentUpgradeChoices = available.slice(0, 3);
@@ -416,7 +432,7 @@ function showUpgradeMenu() {
             const key = currentUpgradeChoices[i];
             const [name, desc] = UPGRADE_INFO[key];
             const level = upgrades[key];
-            const stars = "★".repeat(level) + "☆".repeat(MAX_UPGRADE_LEVEL - level);
+            const stars = "★".repeat(level) + "☆".repeat(maxLevelFor(key) - level);
             card.innerHTML =
                 `<h3 style="margin:0 0 4px 0;color:#000000;font-size:14px;">${name}</h3>` +
                 `<div style="color:#654321;font-size:18px;margin-bottom:6px;">${stars}</div>` +
@@ -443,7 +459,7 @@ function showUpgradeMenu() {
 function selectUpgrade(index) {
     if (index < currentUpgradeChoices.length) {
         const key = currentUpgradeChoices[index];
-        upgrades[key] = Math.min(upgrades[key] + 1, MAX_UPGRADE_LEVEL);
+        upgrades[key] = Math.min(upgrades[key] + 1, maxLevelFor(key));
     }
     mysteryMenu = false;
     document.getElementById("upgrade-container").style.display = "none";
@@ -482,8 +498,12 @@ function resetTendingState(plant) {
     pestActive = false;
     fungalActive = false;
     warmthButtonShown = false;
-    // Each new plant starts fresh — upgrades earned on the previous plant don't carry over.
-    Object.keys(upgrades).forEach((k) => { upgrades[k] = 0; });
+    // Each new plant starts fresh — upgrades earned on the previous plant don't carry
+    // over. Exception: outside Zen, Steady Hands is a permanent perk that persists for
+    // the rest of the game.
+    Object.keys(upgrades).forEach((k) => {
+        if (!(k === "steady" && currentDifficulty !== "zen")) upgrades[k] = 0;
+    });
 
     document.body.classList.remove("winter", "heat-season", "eldritch", "eldritch-plant", "heat-wave", "rainstorm", "drought", "wind", "fungal", "spring", "health-active", "warmth-active", "plant-dead");
     resetEyeSettle(); // clear any death-settle inline styles so eyes wander afresh
@@ -689,7 +709,7 @@ function updateStatus() {
         document.body.classList.remove(phaseClass);
     }
 
-    const dm = settings.death_margin ?? 20; // meters die at <=dm or >=100-dm (wider buffer on zen)
+    const dm = deathMargin(); // meters die at <=dm or >=100-dm (wider on zen, tightened by Steady Hands)
     const dmHi = 100 - dm;
     if (!debugGodMode && (water <= dm || sunlight <= dm || water >= dmHi || sunlight >= dmHi || (warmth <= dm || warmth >= dmHi))) {
         let ring = document.querySelector(".fertilizer-notification");
@@ -1006,6 +1026,14 @@ function tick() {
         fertilizer = Math.min(fertilizer + (settings.fert_gen + upgrades.fertilizer) * mod("fertGenMult", 1), 100);
     }
     sunlight = Math.max(sunlight - sunDecay, 0);
+    // Steady Hands: the meters ease back toward the middle (50) on their own.
+    if (upgrades.steady > 0) {
+        const pull = upgrades.steady * 1.5;
+        const settle = (v) => v + Math.sign(50 - v) * Math.min(pull, Math.abs(50 - v));
+        water = settle(water);
+        sunlight = settle(sunlight);
+        if (growthStage >= 3) warmth = settle(warmth);
+    }
     score += 1;
     const [sMin, sMax] = safeZone();
     let metersOk = sMin <= water && water <= sMax && sMin <= sunlight && sunlight <= sMax;
