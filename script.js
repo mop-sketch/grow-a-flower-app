@@ -174,6 +174,7 @@ function validate() {
 
     if (password.trim().toLowerCase() === 'blooming flower') {
         alert('Access granted');
+        if (typeof recordLoreFound === "function") recordLoreFound(); // hidden achievement
         glitchHeading();
         const darkMusicAudio = document.getElementById("dark-music");
         submitButton.style.display = 'none';

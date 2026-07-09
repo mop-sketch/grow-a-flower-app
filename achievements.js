@@ -38,11 +38,15 @@
         { id: "or-did-we", emoji: "\u{1F300}", name: "Or Did We?",
           desc: "Reach the secret finale.", hidden: true,
           check: (pg) => pg.secretFinale },
+        { id: "secret-lore", emoji: "\u{1F4DC}", name: "Forbidden Knowledge",
+          desc: "Uncover the hidden lore on the Learn More page.", hidden: true,
+          check: (pg) => pg.loreFound },
     ];
 
     function freshProgress() {
         return { unlocked: {}, bloomedPlants: [], weatherSeen: [],
-                 hardBloom: false, zenBloom: false, secretFound: false, secretFinale: false };
+                 hardBloom: false, zenBloom: false, secretFound: false, secretFinale: false,
+                 loreFound: false };
     }
     // Tolerant of missing / corrupt / partial data (mirrors getBestScore): always
     // returns a well-formed blob so callers never have to null-check fields.
@@ -105,6 +109,13 @@
     function recordSecretFinale() {
         const pg = loadAchievements();
         pg.secretFinale = true;
+        evaluateUnlocks(pg);
+        saveAchievements(pg);
+    }
+    // Called from the Learn More page when the secret lore password is accepted.
+    function recordLoreFound() {
+        const pg = loadAchievements();
+        pg.loreFound = true;
         evaluateUnlocks(pg);
         saveAchievements(pg);
     }
@@ -185,6 +196,7 @@
     window.recordBloom = recordBloom;
     window.recordSecretFound = recordSecretFound;
     window.recordSecretFinale = recordSecretFinale;
+    window.recordLoreFound = recordLoreFound;
     window.achievementsTick = achievementsTick;
     window.checkAchievements = checkAchievements;
     window.buildAchievementsScreen = buildAchievementsScreen;
