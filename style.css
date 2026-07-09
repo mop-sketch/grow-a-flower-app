@@ -1142,6 +1142,15 @@ body.eldritch .eye-shape { animation-duration: 4.5s; }
 .eye4 .eye-shape { animation-delay: -3s; }
 .eye4 .eye-drift { animation-delay: -6s; }
 .eye4 .eye-look  { animation-delay: -4s; }
+/* The giant distant eye stays STILL. Animating a huge (≈74%-screen) blurred element
+   repaints that whole region every frame, which flickers ("flashes white") and
+   stutters on phones — and a far-off eye reads better calm. The small near eyes keep
+   their subtle blink/drift/glance (cheap to repaint). */
+.eye4 .eye-shape,
+.eye4 .eye-drift,
+.eye4 .eye-look {
+    animation: none !important;
+}
 /* Phones / narrow portrait: the wide-screen corner layout crowds the centred title
    and clips eyes off the edges. Re-place the near eyes into the empty "void" band
    between the header and the plant, and size them in vmin so they scale to the
