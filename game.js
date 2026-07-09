@@ -610,6 +610,7 @@ function onChoosePlant(plant) {
 
 function beginSecretPlant() {
     resetTendingState(SECRET_PLANT); // applies the .eldritch-plant ambience for us
+    if (typeof recordSecretFound === "function") recordSecretFound();
     // Dark ambience: always on for the secret plant — the music button can't mute it.
     const ambience = document.getElementById("ambience-audio");
     ambience.volume = 0.5;
@@ -840,6 +841,7 @@ function onFertilizer() {
             bloomAudio.play();
             bloomAudio.volume = 0.5;
             clearSave(); // bloomed — this run's tending is finished, don't restore it
+            if (typeof recordBloom === "function") recordBloom(currentPlant.id, currentDifficulty);
             clearAmbience();
             document.body.classList.add("spring");
             control.style.display = "none";
@@ -854,6 +856,7 @@ function onFertilizer() {
 
             if (currentPlant === SECRET_PLANT) {
                 saveHighScore();
+                if (typeof recordSecretFinale === "function") recordSecretFinale();
                 sequenceComplete = true;
                 document.getElementById("status").innerHTML = `Error:👁you_have_won! or_did_we?👁 Score: ${finalScore()} (Best: ${getBestScore()})`;
             } else {
@@ -1094,6 +1097,7 @@ function tick() {
     }
     updateStatus();
     saveGame(); // persist progress each tick so leaving/closing the app keeps it
+    if (typeof achievementsTick === "function") achievementsTick(); // record hazards, check unlocks
     loopTimer = setTimeout(tick, debugTickMs);
     } catch (e) {
         // Self-heal: a transient error in a tick must never permanently freeze the

@@ -1,4 +1,5 @@
 <head>
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Grow a Flower</title>
     <link rel="stylesheet" type="text/css" href="fonts.css">
@@ -6,6 +7,7 @@
     <script src="script.js"></script>
     <script src="game.js"></script>
     <script src="tutorial.js"></script>
+    <script src="achievements.js"></script>
     <script src="debug.js"></script>
 
 </head>
@@ -168,6 +170,7 @@
             </div>
             <hr class="menu-divider">
             <button id="how-to-play-btn" class="menu-button"> How to Play</button>
+            <button id="achievements-btn" class="menu-button"> &#127942; Achievements</button>
             <button id="learn-more-btn" onclick="window.location.href='learn more.html'" class="menu-button"> Learn More</button>
             <button id="restart-btn" class="menu-button"> Restart</button>
             <button id="lore-btn" class="menu-button"> ???</button>
@@ -201,4 +204,18 @@
             </button>
         </div>
     </div>
+    <div class="menu-container" id="achievements-container">
+        <div id="achievements-panel" class="menu achievements-menu">
+            <div class="menu-title-area">
+                <span class="menu-leaf">&#127942;</span>
+                <span class="menu-title-text">Achievements</span>
+                <span class="menu-leaf">&#127942;</span>
+            </div>
+            <div id="achievements-count" class="achievements-count"></div>
+            <hr class="menu-divider">
+            <div id="achievements-list" class="achievements-list"></div>
+            <button id="achievements-close-btn" class="menu-button"> Close</button>
+        </div>
+    </div>
+    <div id="achievement-toast"></div>
 </body>
