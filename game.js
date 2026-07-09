@@ -34,7 +34,23 @@ let currentUpgradeChoices = [];
 // Difficulty presets. "easy" matches the original tuning.
 // "medium" is overall harsher. "hard" is the same as medium except plants
 // take longer to advance through each stage (slower fertilizer, higher thresholds).
+// "zen" sits below easy: a relaxed, hard-to-fail mode for players who just want
+// to grow — slow decay, wide death margin, rare/mild events, low score payoff.
+// `death_margin` is how close to the edges a meter can get before it kills the
+// plant (die at <=margin or >=100-margin); bigger margin on zen = more buffer.
 const DIFFICULTIES = {
+    zen: {
+        decay: 1,
+        fert_gen: 4,
+        weather_intensity: 2,
+        event_chance: 0.004,
+        weather_duration: 3,
+        pest_drain: 2,
+        fert_threshold_start: 25,
+        fert_threshold: 60,
+        score_mult: 0.5,
+        death_margin: 10,
+    },
     easy: {
         decay: 2,
         fert_gen: 3,
@@ -45,6 +61,7 @@ const DIFFICULTIES = {
         fert_threshold_start: 30,
         fert_threshold: 70,
         score_mult: 1.0,
+        death_margin: 20,
     },
     medium: {
         decay: 3,
@@ -56,6 +73,7 @@ const DIFFICULTIES = {
         fert_threshold_start: 30,
         fert_threshold: 70,
         score_mult: 1.5,
+        death_margin: 20,
     },
     hard: {
         decay: 3,
@@ -67,6 +85,7 @@ const DIFFICULTIES = {
         fert_threshold_start: 45,
         fert_threshold: 95,
         score_mult: 2.0,
+        death_margin: 20,
     },
 };
 // Active tuning. Replaced when the player picks a difficulty; defaults to easy.
@@ -577,7 +596,9 @@ function updateStatus() {
         document.body.classList.remove(phaseClass);
     }
 
-    if (!debugGodMode && (water <= 20 || sunlight <= 20 || water >= 80 || sunlight >= 80 || (warmth <= 20 || warmth >= 80))) {
+    const dm = settings.death_margin ?? 20; // meters die at <=dm or >=100-dm (wider buffer on zen)
+    const dmHi = 100 - dm;
+    if (!debugGodMode && (water <= dm || sunlight <= dm || water >= dmHi || sunlight >= dmHi || (warmth <= dm || warmth >= dmHi))) {
         let ring = document.querySelector(".fertilizer-notification");
         ring.style = " filter: blur(10px) opacity(0);";
         // Ease the watching eyes to a dead centre stare (once), while they're still
@@ -591,8 +612,8 @@ function updateStatus() {
         flowerImage.src = currentPlant.deadImage;
         document.body.classList.remove("heat-wave", "rainstorm", "winter", "heat-season", "drought", "wind", "fungal");
         // When the 4th (late-phase) meter is the culprit, name the climate cause.
-        const phaseKilled = growthStage >= 3 && (warmth <= 20 || warmth >= 80) &&
-            water > 20 && water < 80 && sunlight > 20 && sunlight < 80;
+        const phaseKilled = growthStage >= 3 && (warmth <= dm || warmth >= dmHi) &&
+            water > dm && water < dmHi && sunlight > dm && sunlight < dmHi;
         // The secret (eldritch) plant gets its own death flavour instead of the
         // generic line — a random pool entry, with a themed "Begin again." prompt.
         const isSecret = currentPlant.latePhase === "eldritch";
@@ -914,6 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("restart-game-btn").addEventListener("click", onRestart);
     document.getElementById("start-over-btn").addEventListener("click", onRestart);
     document.getElementById("lore-btn").addEventListener("click", onLore);
+    document.getElementById("zen-btn").addEventListener("click", () => startGame("zen"));
     document.getElementById("easy-btn").addEventListener("click", () => startGame("easy"));
     document.getElementById("medium-btn").addEventListener("click", () => startGame("medium"));
     document.getElementById("hard-btn").addEventListener("click", () => startGame("hard"));

@@ -395,6 +395,15 @@ body.lore-mode {
     color: #2e5a2e;
     letter-spacing: 0.4px;
 }
+.zen {
+    background: linear-gradient(160deg, #d6f3f6, #90d9e2);
+    border: 2.5px solid #57bccb;
+}
+.zen:hover {
+    background: linear-gradient(160deg, #c2ecf1, #72cfda);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transform: translateY(-4px) scale(1.03);
+}
 .medium {
     background: linear-gradient(160deg, #fffacd, #ffe57f);
     border: 2.5px solid #e6d65c;
