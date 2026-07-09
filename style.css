@@ -383,9 +383,12 @@ body.lore-mode {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center; /* centre content so all four stay the same size */
     gap: 3px;
     line-height: 1.2;
     text-align: center;
+    box-sizing: border-box;
+    min-height: 70px; /* uniform height even if a description wraps */
 }
 .diff-name {
     font-size: 20px;
