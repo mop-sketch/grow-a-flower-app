@@ -916,6 +916,7 @@ function applyLatePhaseUI() {
 
 function tick() {
     loopTimer = null;
+    try {
     if (tutorialActive) {
         loopTimer = setTimeout(tick, debugTickMs); // paused for a tutorial/tip: skip decay, keep polling
         return;
@@ -1052,6 +1053,15 @@ function tick() {
     updateStatus();
     saveGame(); // persist progress each tick so leaving/closing the app keeps it
     loopTimer = setTimeout(tick, debugTickMs);
+    } catch (e) {
+        // Self-heal: a transient error in a tick must never permanently freeze the
+        // game. Keep the loop alive unless we're legitimately stopped (dead / bloomed
+        // / upgrade menu, which restart the loop themselves).
+        console.error("tick error (recovering):", e);
+        if (loopTimer === null && !dead && growthStage !== FINAL_STAGE && !mysteryMenu) {
+            loopTimer = setTimeout(tick, debugTickMs);
+        }
+    }
 }
 
 function startGame(level) {
