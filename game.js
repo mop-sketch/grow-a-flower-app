@@ -661,6 +661,7 @@ function onFertilizer() {
             );
             bloomAudio.currentTime = 0;
             bloomAudio.play();
+            bloomAudio.volume = 0.5;
             clearAmbience();
             document.body.classList.add("spring");
             control.style.display = "none";
