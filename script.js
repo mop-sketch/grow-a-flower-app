@@ -131,17 +131,33 @@ document.addEventListener('DOMContentLoaded', initAppleLinkConnectivity);
 // available locally, so loops repeat the whole song and one-shot effects (like
 // the plant-growing sound) play instantly and reliably. Falls back to the
 // original src if the fetch fails (e.g. as a plain web page).
+function blobifyAudio(el) {
+    const src = el.getAttribute('src');
+    if (!src || src.startsWith('blob:')) return; // nothing to load / already a blob
+    fetch(src)
+        .then((resp) => resp.blob())
+        .then((blob) => {
+            // The fetch is async: if the track was swapped meanwhile (e.g. the secret
+            // plant changed music-audio to its own song during restore), don't clobber
+            // it with this now-stale blob.
+            if (el.getAttribute('src') !== src) return;
+            el.src = URL.createObjectURL(blob);
+        })
+        .catch(() => { /* keep original src */ });
+}
 function preloadAudio() {
-    document.querySelectorAll('audio').forEach((el) => {
-        const src = el.getAttribute('src');
-        if (!src) return;
-        fetch(src)
-            .then((resp) => resp.blob())
-            .then((blob) => { el.src = URL.createObjectURL(blob); })
-            .catch(() => { /* keep original src */ });
-    });
+    document.querySelectorAll('audio').forEach(blobifyAudio);
 }
 document.addEventListener('DOMContentLoaded', preloadAudio);
+
+// Swap the toggleable music layer to a specific track and load it as a blob (so it
+// loops reliably in the Android WebView), in a way preloadAudio's guard won't undo.
+function setMusicTrack(path) {
+    const el = document.getElementById('music-audio');
+    if (!el) return;
+    el.setAttribute('src', path); // mark the intended track before blobifying
+    blobifyAudio(el);
+}
 
 function validate() {
     const aboutMake = document.getElementById('about-make');

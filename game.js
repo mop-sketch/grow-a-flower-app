@@ -302,8 +302,22 @@ function restoreSavedGame() {
     if (plant === SECRET_PLANT) {
         const ambience = document.getElementById("ambience-audio");
         ambience.volume = 0.5;
-        try { ambience.play(); } catch (e) { /* autoplay may wait for a tap */ }
-        document.getElementById("music-audio").src = "music and images/Unknown-creature-music.mp3";
+        // Restore the toggleable creature-music layer (reliably, without preloadAudio
+        // overwriting it — see setMusicTrack).
+        setMusicTrack("music and images/Unknown-creature-music.mp3");
+        // Try to resume the always-on dark ambience. A background→foreground return
+        // has no user gesture, so autoplay is usually blocked here; if so, start it on
+        // the player's first tap — as long as they're still on the (living) secret
+        // plant and haven't toggled the creature-music layer on instead.
+        ambience.play().catch(() => {});
+        const resumeAmbienceOnTap = () => {
+            document.removeEventListener("pointerdown", resumeAmbienceOnTap);
+            const music = document.getElementById("music-audio");
+            if (currentPlant && currentPlant.id === "secret" && !dead && music.paused) {
+                ambience.play().catch(() => {});
+            }
+        };
+        document.addEventListener("pointerdown", resumeAmbienceOnTap);
     }
     updateStatus();
     return true;
