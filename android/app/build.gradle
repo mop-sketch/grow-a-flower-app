@@ -10,6 +10,11 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace "com.growaflower.game"
     compileSdk rootProject.ext.compileSdkVersion
+    buildFeatures {
+        // Generate BuildConfig so MainActivity can read BuildConfig.DEBUG and tell
+        // the web layer whether this is a debug build (drives the debug panel).
+        buildConfig true
+    }
     signingConfigs {
         release {
             if (keystorePropertiesFile.exists()) {
