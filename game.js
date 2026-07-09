@@ -3,6 +3,7 @@
 // runs with no Python runtime (small, instant, offline-friendly).
 
 const HIGH_SCORE_KEY = "growAFlowerBest";
+const SAVE_KEY = "growAFlowerSave"; // in-progress game snapshot (survives app close)
 
 let water = 50;
 let fertilizer = 0;
@@ -25,6 +26,8 @@ let score = 0;
 let scoreSaved = false;
 let tutorialActive = false; // set by tutorial.js; pauses the decay loop
 let entityRevealActive = false; // brief dramatic hold when the secret entity first appears
+let gameStarted = false;    // true once a difficulty is chosen (a tending game is live)
+let currentDifficulty = "easy"; // the chosen difficulty key, for saving/restoring
 let debugGodMode = false;   // set by debug.js (?debug=1): meters/health never kill
 let debugTickMs = 1000;     // set by debug.js: tick speed (fast-forward / slow-mo)
 
@@ -219,6 +222,86 @@ function saveHighScore() {
     if (finalScore() > getBestScore()) {
         localStorage.setItem(HIGH_SCORE_KEY, String(finalScore()));
     }
+}
+
+// --- Save / restore in-progress game -----------------------------------------
+// Persists a snapshot of the live tending state so leaving the app (or the phone
+// powering off) doesn't lose progress. Only saved during active tending; cleared
+// on death / win / restart. See restoreSavedGame() (run on load).
+function findPlantById(id) {
+    if (id === STARTER_PLANT.id) return STARTER_PLANT;
+    if (id === SECRET_PLANT.id) return SECRET_PLANT;
+    return PLANT_POOL.find((p) => p.id === id) || STARTER_PLANT;
+}
+
+function saveGame() {
+    // Only persist a live, restorable tending state (not menus, death, or a win).
+    if (!gameStarted || dead || sequenceComplete || growthStage >= FINAL_STAGE || mysteryMenu) return;
+    try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+            v: 1,
+            difficulty: currentDifficulty,
+            plantId: currentPlant.id,
+            water, sunlight, warmth, fertilizer, growthStage, health, score,
+            heatWaveTicks, rainstormTicks, droughtTicks, windTicks,
+            pestActive, fungalActive,
+            upgrades: { ...upgrades },
+            picksRemaining, sequenceComplete,
+            grownPlantIds: [...grownPlantIds],
+        }));
+    } catch (e) { /* storage unavailable/full: skip */ }
+}
+
+function clearSave() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+}
+
+// Rebuild a saved tending game on load. Returns true if a game was restored.
+function restoreSavedGame() {
+    let snap;
+    try { snap = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { return false; }
+    if (!snap || snap.v !== 1 || !DIFFICULTIES[snap.difficulty]) { clearSave(); return false; }
+    const plant = findPlantById(snap.plantId);
+    // Guard: only restore mid-tending (not a finished/blank snapshot).
+    if (snap.sequenceComplete || snap.growthStage >= plant.stages.length - 1) { clearSave(); return false; }
+
+    currentDifficulty = snap.difficulty;
+    settings = DIFFICULTIES[currentDifficulty];
+    gameStarted = true;
+    document.getElementById("difficulty-container").style.display = "none";
+    // resetTendingState builds the correct plant DOM (controls, ambience class,
+    // buttons, flower@stage0) and starts the loop; then we overlay saved progress.
+    resetTendingState(plant);
+    water = snap.water; sunlight = snap.sunlight; warmth = snap.warmth;
+    fertilizer = snap.fertilizer; growthStage = snap.growthStage; health = snap.health;
+    score = snap.score; dead = false;
+    heatWaveTicks = snap.heatWaveTicks; rainstormTicks = snap.rainstormTicks;
+    droughtTicks = snap.droughtTicks; windTicks = snap.windTicks;
+    pestActive = snap.pestActive; fungalActive = snap.fungalActive;
+    Object.keys(upgrades).forEach((k) => { upgrades[k] = (snap.upgrades && snap.upgrades[k]) || 0; });
+    picksRemaining = snap.picksRemaining;
+    sequenceComplete = snap.sequenceComplete;
+    grownPlantIds = new Set(snap.grownPlantIds || [plant.id]);
+
+    // Stage- and event-dependent UI the fresh reset doesn't cover.
+    document.getElementById("flower-image").src = STAGES[growthStage];
+    if (growthStage >= 3) applyLatePhaseUI();
+    if (pestActive || fungalActive) {
+        document.getElementById("health-row").style.display = "flex";
+        document.body.classList.add("health-active");
+    }
+    if (fungalActive) {
+        document.getElementById("drain-btn").style.display = "block";
+        document.body.classList.add("drain-active");
+    }
+    if (plant === SECRET_PLANT) {
+        const ambience = document.getElementById("ambience-audio");
+        ambience.volume = 0.5;
+        try { ambience.play(); } catch (e) { /* autoplay may wait for a tap */ }
+        document.getElementById("music-audio").src = "music and images/Unknown-creature-music.mp3";
+    }
+    updateStatus();
+    return true;
 }
 
 const UPGRADE_INFO = {
@@ -555,6 +638,7 @@ function updateStatus() {
         statusEl.innerHTML = `\u{1F321}️ Heat wave! (${heatWaveTicks}s remaining)`;
     } else if (health === 0 && !debugGodMode) {
         dead = true;
+        clearSave(); // the run is over — don't restore a dead plant on next launch
         saveHighScore();
         flowerImage.src = currentPlant.deadImage;
         statusEl.innerHTML = `Plant has died due to poor health❤️. Score: ${finalScore()} (Best: ${getBestScore()}). Restart to try again.`;
@@ -608,6 +692,7 @@ function updateStatus() {
             eyesSettled = true;
         }
         dead = true;
+        clearSave(); // the run is over — don't restore a dead plant on next launch
         saveHighScore();
         flowerImage.src = currentPlant.deadImage;
         document.body.classList.remove("heat-wave", "rainstorm", "winter", "heat-season", "drought", "wind", "fungal");
@@ -683,6 +768,7 @@ function onFertilizer() {
             bloomAudio.currentTime = 0;
             bloomAudio.play();
             bloomAudio.volume = 0.5;
+            clearSave(); // bloomed — this run's tending is finished, don't restore it
             clearAmbience();
             document.body.classList.add("spring");
             control.style.display = "none";
@@ -735,6 +821,7 @@ function onMainMenu() {
 }
 
 function onRestart() {
+    clearSave(); // start fresh — drop any in-progress save so reload shows difficulty select
     clearAmbience();
     document.location.reload();
 }
@@ -778,6 +865,25 @@ function startLoop() {
     loopTimer = setTimeout(tick, debugTickMs);
 }
 
+// Reveal the stage-3+ late-phase UI (the 4th meter, its button, split the water/sun
+// buttons). Shared by the tick (when a plant first reaches stage 3) and by restore
+// (when reloading straight into a stage-3+ plant).
+function applyLatePhaseUI() {
+    const phase = latePhase();
+    document.getElementById("sun-btn").style.left = "15%";
+    document.getElementById("water-btn").style.left = "85%";
+    const warmthBtn = document.getElementById("warmth-btn");
+    warmthBtn.style.display = "block";
+    warmthBtn.textContent = phase.btnLabel;
+    warmthBtn.classList.remove("humidify-button", "eldritch-button");
+    if (phase.btnClass) warmthBtn.classList.add(phase.btnClass);
+    const warmthLabel = document.querySelector("#warmth-row .meter-label");
+    if (warmthLabel) warmthLabel.innerHTML = phase.meterLabel;
+    document.getElementById("warmth-row").style.display = "flex";
+    warmthButtonShown = true;
+    document.body.classList.add("warmth-active");
+}
+
 function tick() {
     loopTimer = null;
     if (tutorialActive) {
@@ -788,26 +894,16 @@ function tick() {
         loopTimer = setTimeout(tick, debugTickMs); // hold the entity reveal: freeze decay, keep the message
         return;
     }
-    const healthRow = document.getElementById("health-row");
-    const sunBtn = document.getElementById("sun-btn");
-    const waterBtn = document.getElementById("water-btn");
-    const warmthBtn = document.getElementById("warmth-btn");
-    const warmthRow = document.getElementById("warmth-row");
+    if (document.hidden) {
+        // App backgrounded / screen off: freeze decay, weather and score; keep polling
+        // so play resumes exactly where it left off when the player returns.
+        loopTimer = setTimeout(tick, debugTickMs);
+        return;
+    }
 
     if (growthStage === 3 && warmthButtonShown === false && !mysteryMenu) {
-        const phase = latePhase();
-        sunBtn.style.left = "15%";
-        waterBtn.style.left = "85%";
-        warmthBtn.style.display = "block";
-        warmthBtn.textContent = phase.btnLabel;
-        warmthBtn.classList.remove("humidify-button", "eldritch-button");
-        if (phase.btnClass) warmthBtn.classList.add(phase.btnClass);
-        const warmthLabel = document.querySelector("#warmth-row .meter-label");
-        if (warmthLabel) warmthLabel.innerHTML = phase.meterLabel;
-        warmthRow.style.display = "flex";
-        warmthButtonShown = true;
-        document.body.classList.add("warmth-active");
-        maybeShowTip("warmth", "#warmth-btn", phase.tip);
+        applyLatePhaseUI();
+        maybeShowTip("warmth", "#warmth-btn", latePhase().tip);
     }
     if (dead || growthStage === FINAL_STAGE || mysteryMenu) {
         return; // break: do not reschedule
@@ -910,11 +1006,14 @@ function tick() {
         score += 5;
     }
     updateStatus();
+    saveGame(); // persist progress each tick so leaving/closing the app keeps it
     loopTimer = setTimeout(tick, debugTickMs);
 }
 
 function startGame(level) {
     settings = DIFFICULTIES[level];
+    currentDifficulty = level;
+    gameStarted = true;
     document.getElementById("difficulty-container").style.display = "none";
     applyArtScale(); // size the starter flower (other plants set theirs on switch)
     startLoop();
@@ -939,4 +1038,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("easy-btn").addEventListener("click", () => startGame("easy"));
     document.getElementById("medium-btn").addEventListener("click", () => startGame("medium"));
     document.getElementById("hard-btn").addEventListener("click", () => startGame("hard"));
+
+    // Persist progress the moment the app is backgrounded / the screen turns off, and
+    // again as the page unloads — so it survives the OS killing the app.
+    document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
+    window.addEventListener("pagehide", saveGame);
+
+    // If a game was in progress last time, pick up exactly where it left off.
+    restoreSavedGame();
 });
