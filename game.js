@@ -314,7 +314,7 @@ const UPGRADE_INFO = {
     fertilizer: ["Boost Fertilizer", "Fertilizer generation +1/tick per level"],
     safe_zone: ["Widen Safe Zone", "Fertilizer safe zone expands 5% per level"],
     weather: ["Weather Shield", "Heat wave & rainstorm intensity −1/tick per level"],
-    steady: ["Steady Hands", "Water, Sunlight & Warmth drift back toward the middle on their own"],
+    steady: ["Steady Hands", "Water, Sunlight & Warmth drift more slowly, staying nearer the middle"],
 };
 const MAX_UPGRADE_LEVEL = 3;
 // Steady Hands is a normal 3-level upgrade in Zen, but only a single, rare,
@@ -1026,13 +1026,19 @@ function tick() {
         fertilizer = Math.min(fertilizer + (settings.fert_gen + upgrades.fertilizer) * mod("fertGenMult", 1), 100);
     }
     sunlight = Math.max(sunlight - sunDecay, 0);
-    // Steady Hands: the meters ease back toward the middle (50) on their own.
+    // Steady Hands: nudge each meter toward the middle (50), but gently — the pull is
+    // capped below that meter's decay, so a low bar still drifts DOWN each tick (just
+    // slower), never climbing on its own.
     if (upgrades.steady > 0) {
-        const pull = upgrades.steady * 1.5;
-        const settle = (v) => v + Math.sign(50 - v) * Math.min(pull, Math.abs(50 - v));
-        water = settle(water);
-        sunlight = settle(sunlight);
-        if (growthStage >= 3) warmth = settle(warmth);
+        const settle = (v, decayAmt) => {
+            // Capped below that meter's decay (even for slow-decay plants) so the bar
+            // always still drifts down each tick; higher levels soften it a bit more.
+            const pull = Math.min(upgrades.steady * 0.3, decayAmt * 0.8, Math.abs(50 - v));
+            return v + Math.sign(50 - v) * pull;
+        };
+        water = settle(water, waterDecay);
+        sunlight = settle(sunlight, sunDecay);
+        if (growthStage >= 3) warmth = settle(warmth, warmthDecay);
     }
     score += 1;
     const [sMin, sMax] = safeZone();
