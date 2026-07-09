@@ -397,7 +397,11 @@ function advanceStage() {
 }
 
 function showUpgradeMenu() {
-    const available = Object.keys(upgrades).filter((k) => upgrades[k] < MAX_UPGRADE_LEVEL);
+    const available = Object.keys(upgrades).filter((k) =>
+        upgrades[k] < MAX_UPGRADE_LEVEL &&
+        // Zen already has very slow decay — never offer (so never grant) Slow Decay.
+        !(currentDifficulty === "zen" && k === "decay")
+    );
     shuffle(available);
     currentUpgradeChoices = available.slice(0, 3);
     clearAmbience();
