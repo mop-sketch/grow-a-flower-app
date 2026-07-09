@@ -41,6 +41,12 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            // Separate package + version so the sideloaded debug build installs
+            // alongside the Play release instead of replacing it.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
     }
 }
 
