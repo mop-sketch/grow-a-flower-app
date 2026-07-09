@@ -238,6 +238,10 @@ function saveGame() {
     // Only persist a live, restorable tending state (not menus, death, or a win).
     if (!gameStarted || dead || sequenceComplete || growthStage >= FINAL_STAGE || mysteryMenu) return;
     try {
+        // Note: the plant-sequence counters (picksRemaining / grownPlantIds /
+        // sequenceComplete) are intentionally NOT saved — progress toward the secret
+        // plant shouldn't carry across sessions, so reopening keeps the current plant
+        // but restarts the countdown to the secret.
         localStorage.setItem(SAVE_KEY, JSON.stringify({
             v: 1,
             difficulty: currentDifficulty,
@@ -246,8 +250,6 @@ function saveGame() {
             heatWaveTicks, rainstormTicks, droughtTicks, windTicks,
             pestActive, fungalActive,
             upgrades: { ...upgrades },
-            picksRemaining, sequenceComplete,
-            grownPlantIds: [...grownPlantIds],
         }));
     } catch (e) { /* storage unavailable/full: skip */ }
 }
@@ -279,9 +281,9 @@ function restoreSavedGame() {
     droughtTicks = snap.droughtTicks; windTicks = snap.windTicks;
     pestActive = snap.pestActive; fungalActive = snap.fungalActive;
     Object.keys(upgrades).forEach((k) => { upgrades[k] = (snap.upgrades && snap.upgrades[k]) || 0; });
-    picksRemaining = snap.picksRemaining;
-    sequenceComplete = snap.sequenceComplete;
-    grownPlantIds = new Set(snap.grownPlantIds || [plant.id]);
+    // picksRemaining / grownPlantIds / sequenceComplete are deliberately left at their
+    // fresh defaults (resetTendingState already marked the current plant as grown), so
+    // the countdown to the secret plant restarts rather than carrying over.
 
     // Stage- and event-dependent UI the fresh reset doesn't cover.
     document.getElementById("flower-image").src = STAGES[growthStage];
