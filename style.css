@@ -775,6 +775,14 @@ html {
     animation: rainFall 0.35s linear infinite;
     z-index: 999;
 }
+/* The secret plant keeps a constant eldritch look — the rain-streak overlay's
+   fast-scrolling pattern strobes as light "glitches" over the dark scene, so hide
+   it here. Rain still affects gameplay; only its visual overlay is suppressed
+   (the heat/drought/wind background + flower effects are already overridden by the
+   eldritch background/throb animations). */
+body.eldritch-plant.rainstorm::before {
+    display: none;
+}
 
 .rainstorm #flower-image {
     animation: rainDarken 1.2s ease-in-out infinite;
