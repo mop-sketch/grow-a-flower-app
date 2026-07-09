@@ -149,6 +149,26 @@ function clearAmbience() {
     document.body.classList.remove(...AMBIENCE_CLASSES);
 }
 
+// Pause the looping music while the app is backgrounded / the screen is off, and
+// resume exactly what was playing when it returns. The WebView keeps the same page
+// across a background→foreground (no reload), so a play() on return still works
+// without a fresh tap. (A full close reloads the page instead — restoreSavedGame
+// handles that path.) Only the two loops are managed; one-shot SFX are left alone.
+let audioWasPlaying = { ambience: false, music: false };
+function pauseMusicForBackground() {
+    const amb = document.getElementById("ambience-audio");
+    const mus = document.getElementById("music-audio");
+    audioWasPlaying = { ambience: amb && !amb.paused, music: mus && !mus.paused };
+    if (amb) amb.pause();
+    if (mus) mus.pause();
+}
+function resumeMusicForForeground() {
+    const amb = document.getElementById("ambience-audio");
+    const mus = document.getElementById("music-audio");
+    if (audioWasPlaying.ambience && amb) amb.play().catch(() => {});
+    if (audioWasPlaying.music && mus) mus.play().catch(() => {});
+}
+
 // On death the eyes should drift to a centred, dead stare rather than snap there.
 // Chromium jumps a transform straight to its base the instant an animation is
 // removed, so a CSS transition can't ease it. Instead, FLIP it in JS: read each
@@ -1109,9 +1129,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("medium-btn").addEventListener("click", () => startGame("medium"));
     document.getElementById("hard-btn").addEventListener("click", () => startGame("hard"));
 
-    // Persist progress the moment the app is backgrounded / the screen turns off, and
-    // again as the page unloads — so it survives the OS killing the app.
-    document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
+    // When the app is backgrounded / the screen turns off: save progress and pause the
+    // music (so it stops instead of playing to an off screen). When it comes back to the
+    // foreground: resume whatever music was playing. The tick loop pauses/resumes decay
+    // separately via its own document.hidden guard.
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) { saveGame(); pauseMusicForBackground(); }
+        else { resumeMusicForForeground(); }
+    });
     window.addEventListener("pagehide", saveGame);
 
     // If a game was in progress last time, pick up exactly where it left off.
