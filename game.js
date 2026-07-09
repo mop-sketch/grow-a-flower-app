@@ -418,6 +418,8 @@ function showUpgradeMenu() {
         upgrades[k] < maxLevelFor(k) &&
         // Zen already has very slow decay — never offer (so never grant) Slow Decay.
         !(currentDifficulty === "zen" && k === "decay") &&
+        // In Zen, Steady Hands is only offered once the late phase begins (stage 3+).
+        !(k === "steady" && currentDifficulty === "zen" && growthStage < 3) &&
         // Steady Hands is a rare perk outside Zen: only rarely eligible to be offered.
         !(k === "steady" && currentDifficulty !== "zen" && Math.random() >= 0.15)
     );
