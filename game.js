@@ -28,6 +28,7 @@ let tutorialActive = false; // set by tutorial.js; pauses the decay loop
 let entityRevealActive = false; // brief dramatic hold when the secret entity first appears
 let gameStarted = false;    // true once a difficulty is chosen (a tending game is live)
 let currentDifficulty = "easy"; // the chosen difficulty key, for saving/restoring
+let restarting = false;     // set during onRestart so the unload handlers don't re-save
 let debugGodMode = false;   // set by debug.js (?debug=1): meters/health never kill
 let debugTickMs = 1000;     // set by debug.js: tick speed (fast-forward / slow-mo)
 
@@ -236,7 +237,9 @@ function findPlantById(id) {
 
 function saveGame() {
     // Only persist a live, restorable tending state (not menus, death, or a win).
-    if (!gameStarted || dead || sequenceComplete || growthStage >= FINAL_STAGE || mysteryMenu) return;
+    // `restarting` guards against the reload's unload handlers re-writing a save
+    // right after onRestart cleared it (which would restore the game we just reset).
+    if (restarting || !gameStarted || dead || sequenceComplete || growthStage >= FINAL_STAGE || mysteryMenu) return;
     try {
         // Note: the plant-sequence counters (picksRemaining / grownPlantIds /
         // sequenceComplete) are intentionally NOT saved — progress toward the secret
@@ -827,6 +830,7 @@ function onMainMenu() {
 }
 
 function onRestart() {
+    restarting = true; // block the pagehide/visibilitychange handlers from re-saving mid-reload
     clearSave(); // start fresh — drop any in-progress save so reload shows difficulty select
     clearAmbience();
     document.location.reload();
