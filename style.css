@@ -1127,6 +1127,12 @@ body.eldritch .eye-shape { animation-duration: 4.5s; }
     z-index: -1;
     opacity: 0.5;
     filter: blur(14px) brightness(0.45) saturate(0.85);
+    /* The whole eye slowly wanders as ONE already-blurred layer. Animating the
+       container's transform just repositions the cached (rasterized) blur on the
+       GPU — it never re-runs the 14px blur, so there's no per-frame repaint and
+       none of the "flashing white" that animating the inner SVG caused. */
+    will-change: transform;
+    animation: eye4Wander 46s ease-in-out infinite;
 }
 /* Desync the three eyes: negative delays start each mid-cycle so they blink,
    wander and glance at different moments. */
@@ -1142,14 +1148,27 @@ body.eldritch .eye-shape { animation-duration: 4.5s; }
 .eye4 .eye-shape { animation-delay: -3s; }
 .eye4 .eye-drift { animation-delay: -6s; }
 .eye4 .eye-look  { animation-delay: -4s; }
-/* The giant distant eye stays STILL. Animating a huge (≈74%-screen) blurred element
-   repaints that whole region every frame, which flickers ("flashes white") and
-   stutters on phones — and a far-off eye reads better calm. The small near eyes keep
-   their subtle blink/drift/glance (cheap to repaint). */
+/* The giant eye's INNER movement stays off. Animating the SVG inside the blur
+   changes the filter's input, forcing the 14px blur to recompute over a ≈74%-screen
+   region every frame — that's what flickered ("flashed white") on phones. Instead the
+   whole eye drifts via the container transform above (eye4Wander), which is a cheap
+   GPU reposition of the already-blurred layer. The small near eyes keep their own
+   blink/drift/glance (cheap to repaint at their size). */
 .eye4 .eye-shape,
 .eye4 .eye-drift,
 .eye4 .eye-look {
     animation: none !important;
+}
+/* Slow looming wander for the giant eye. Keeps the base translate(-50%,-50%) centring
+   and adds a gentle roaming offset (a few vmin) so it drifts around the void without
+   ever leaving its blurred layer — pure transform, no blur recompute. */
+@keyframes eye4Wander {
+    0%   { transform: translate(-50%, -50%) translate(0, 0); }
+    20%  { transform: translate(-50%, -50%) translate(3.2vmin, -2vmin); }
+    40%  { transform: translate(-50%, -50%) translate(-2.4vmin, 2.6vmin); }
+    60%  { transform: translate(-50%, -50%) translate(2vmin, 2.2vmin); }
+    80%  { transform: translate(-50%, -50%) translate(-3vmin, -1.6vmin); }
+    100% { transform: translate(-50%, -50%) translate(0, 0); }
 }
 /* Phones / narrow portrait: the wide-screen corner layout crowds the centred title
    and clips eyes off the edges. Re-place the near eyes into the empty "void" band
@@ -1226,6 +1245,8 @@ body.eldritch .eye-shape { animation-duration: 4.5s; }
     filter: blur(14px) grayscale(1) brightness(0.4);
     opacity: 0.44;
     transition: filter 1.3s ease, opacity 1.3s ease;
+    /* Dead = frozen: stop the wander so the giant eye hangs lifelessly still. */
+    animation: none;
 }
 
 /* The whole scene glitches and desaturates — the entity, purposeless, breaking
