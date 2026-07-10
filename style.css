@@ -379,7 +379,9 @@ body.lore-mode {
     letter-spacing: 0.5px;
 }
 .menu-buttons .menu-button:last-child {
-    grid-column: 1 / -1;  /* ??? sits on its own full-width bottom row */
+    grid-column: 1 / -1;        /* own bottom row, but sized like the others & centred */
+    justify-self: center;
+    width: calc(50% - 7px);     /* == one grid cell (half the row minus half the 14px gap) */
 }
 .difficulty-container {
     position: absolute;
@@ -1746,6 +1748,9 @@ body.eldritch-plant.spring .start-over-button { display: block; }
     .menu-buttons .menu-button {
         font-size: 14px;
         padding: 13px 6px;
+    }
+    .menu-buttons .menu-button:last-child {
+        width: calc(50% - 5px); /* match the 10px phone gap */
     }
     .menu-title-area {
         font-size: 22px;
