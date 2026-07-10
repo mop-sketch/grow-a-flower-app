@@ -1756,9 +1756,9 @@ body.eldritch-plant.spring .start-over-button { display: block; }
         font-size: 22px;
     }
     .upgrade-menu {
-        width: 90vw;
+        width: 95vw;
         height: auto;
-        padding: 16px 12px;
+        padding: 16px 10px;
         display: flex;
         flex-direction: column;
     }
@@ -1775,11 +1775,18 @@ body.eldritch-plant.spring .start-over-button { display: block; }
     .upgrade-option,
     .upgrade-option1,
     .upgrade-option2 {
-        width: 30%;
+        width: 31%;
         height: auto;
         min-height: 110px;
-        padding: 10px 6px;
+        padding: 10px 4px !important; /* !important beats the inline 10px game.js sets, giving titles room */
         font-size: 13px;
+    }
+    /* Slightly smaller titles on the narrow phone cards so two-word names like
+       "Steady Hands" fit on one line (beats the inline 14px). */
+    .upgrade-option h3,
+    .upgrade-option1 h3,
+    .upgrade-option2 h3 {
+        font-size: 13px !important;
     }
     .upgrade-button {
         font-size: 14px;
