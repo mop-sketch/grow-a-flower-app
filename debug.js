@@ -1,25 +1,53 @@
 // debug.js — dev-only playtesting panel.
 //
-// Completely inert unless enabled with `?debug=1` in the URL (which is then
-// remembered in localStorage so it survives the page reloads that Restart does).
-// Turn it off again with `?debug=0`. It ships harmlessly in the bundle — a normal
-// player never sets the flag, so none of this code runs for them.
+// Hidden behind two opt-ins, both remembered in localStorage so they survive the page
+// reloads that Restart does:
+//   • `?debug=1` in the URL (`?debug=0` turns it off again), and
+//   • pressing "d" twice quickly, which toggles the panel on/off.
+// The keypress route is keyboard-only, so on a touch-only phone it is unreachable and
+// the panel never appears for a normal player. It does work in a desktop browser and in
+// the Android emulator, which forwards the host keyboard to the device.
 //
 // It reaches into game.js's globals (growthStage, water, debugGodMode, …) and
 // functions (resetTendingState, onFertilizer, …). That works because both are
 // plain classic scripts sharing one global scope, and debug.js loads last.
 (function () {
+    const DOUBLE_KEY_MS = 500; // max gap between the two "d" presses
     const params = new URLSearchParams(location.search);
     if (params.get("debug") === "1") localStorage.setItem("growAFlowerDebug", "1");
     if (params.get("debug") === "0") localStorage.removeItem("growAFlowerDebug");
-    // The panel is opt-in via ?debug=1 (browser) only — installed Android builds never
-    // auto-enable it, so a normal run of the app has no debug menu.
-    if (localStorage.getItem("growAFlowerDebug") !== "1") return;
 
-    // Skip the intro tutorial while playtesting.
-    localStorage.setItem("growAFlowerTutorialSeen", "true");
+    let lastD = 0;
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "d" && e.key !== "D") return;
+        const t = e.target; // never hijack typing in a field
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+        const now = Date.now();
+        if (now - lastD <= DOUBLE_KEY_MS) { lastD = 0; togglePanel(); }
+        else { lastD = now; }
+    });
 
-    document.addEventListener("DOMContentLoaded", buildPanel);
+    if (localStorage.getItem("growAFlowerDebug") === "1") showPanel();
+
+    function togglePanel() {
+        if (document.getElementById("debug-panel")) hidePanel();
+        else showPanel();
+    }
+    function showPanel() {
+        localStorage.setItem("growAFlowerDebug", "1");
+        localStorage.setItem("growAFlowerTutorialSeen", "true"); // skip the intro while playtesting
+        if (document.getElementById("debug-panel")) return;
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", buildPanel, { once: true });
+        } else {
+            buildPanel();
+        }
+    }
+    function hidePanel() {
+        localStorage.removeItem("growAFlowerDebug");
+        const panel = document.getElementById("debug-panel");
+        if (panel) panel.remove();
+    }
 
     function ensureStarted() {
         const diff = document.getElementById("difficulty-container");
@@ -36,7 +64,9 @@
         if (typeof maybeShowTip === "function") window.maybeShowTip = function () {};
         tutorialActive = false;
 
-        const style = document.createElement("style");
+        // Injected once — toggling the panel off/on must not stack duplicate styles.
+        const style = document.getElementById("debug-panel-style") || document.createElement("style");
+        style.id = "debug-panel-style";
         style.textContent = `
             #debug-panel{position:fixed;top:8px;left:8px;z-index:99999;font-family:monospace;
                 background:rgba(20,20,25,0.9);color:#eee;border:1px solid #556;border-radius:8px;
