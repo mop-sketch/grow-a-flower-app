@@ -1131,7 +1131,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("main-menu-btn").addEventListener("click", onMainMenu);
     document.getElementById("restart-btn").addEventListener("click", onRestart);
     document.getElementById("keep-playing-btn").addEventListener("click", continueAfterWin);
-    document.getElementById("restart-game-btn").addEventListener("click", onRestart);
     document.getElementById("start-over-btn").addEventListener("click", onRestart);
     document.getElementById("lore-btn").addEventListener("click", onLore);
     document.getElementById("zen-btn").addEventListener("click", () => startGame("zen"));
