@@ -12,14 +12,8 @@
     const params = new URLSearchParams(location.search);
     if (params.get("debug") === "1") localStorage.setItem("growAFlowerDebug", "1");
     if (params.get("debug") === "0") localStorage.removeItem("growAFlowerDebug");
-    // On a native Android DEBUG build, turn the panel on automatically (via the
-    // BuildConfig.DEBUG flag MainActivity exposes). The Play release returns false /
-    // has no such interface, so it stays off there — nothing to toggle by hand.
-    try {
-        if (window.AndroidBuildInfo && window.AndroidBuildInfo.isDebug()) {
-            localStorage.setItem("growAFlowerDebug", "1");
-        }
-    } catch (e) {}
+    // The panel is opt-in via ?debug=1 (browser) only — installed Android builds never
+    // auto-enable it, so a normal run of the app has no debug menu.
     if (localStorage.getItem("growAFlowerDebug") !== "1") return;
 
     // Skip the intro tutorial while playtesting.
